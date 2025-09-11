@@ -1,0 +1,47 @@
+{
+  "expo": {
+    "name": "DreamInterpreterApp",
+    "slug": "DreamInterpreterApp",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.qlsl1198.DreamInterpreterApp",
+      "config": {
+        "googleMobileAdsAppId": "ca-app-pub-7625170441500776~9406449557"
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "edgeToEdgeEnabled": true,
+      "package": "com.qlsl1198.DreamInterpreterApp",
+      "config": {
+        "googleMobileAdsAppId": "ca-app-pub-7625170441500776~9406449557"
+      }
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-sqlite",
+      "expo-font",
+      "expo-asset"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "c662c0bc-094d-4b6e-8071-db7ae1c81757"
+      }
+    }
+  }
+}

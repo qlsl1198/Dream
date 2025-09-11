@@ -1,0 +1,78 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- 배경 그라데이션 -->
+  <defs>
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#667eea;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#764ba2;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#f093fb;stop-opacity:1" />
+    </linearGradient>
+    
+    <linearGradient id="moonGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#ffffff;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#f8f9fa;stop-opacity:1" />
+    </linearGradient>
+    
+    <radialGradient id="starGradient" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" style="stop-color:#ffffff;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#e3f2fd;stop-opacity:1" />
+    </radialGradient>
+    
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+      <feMerge> 
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  
+  <!-- 배경 원 -->
+  <circle cx="512" cy="512" r="512" fill="url(#bgGradient)"/>
+  
+  <!-- 별들 -->
+  <g filter="url(#glow)">
+    <!-- 큰 별 1 -->
+    <path d="M200 200 L220 260 L280 260 L230 300 L250 360 L200 320 L150 360 L170 300 L120 260 L180 260 Z" fill="url(#starGradient)" opacity="0.9"/>
+    
+    <!-- 큰 별 2 -->
+    <path d="M800 150 L820 210 L880 210 L830 250 L850 310 L800 270 L750 310 L770 250 L720 210 L780 210 Z" fill="url(#starGradient)" opacity="0.8"/>
+    
+    <!-- 작은 별들 -->
+    <circle cx="300" cy="300" r="8" fill="url(#starGradient)" opacity="0.7"/>
+    <circle cx="700" cy="250" r="6" fill="url(#starGradient)" opacity="0.6"/>
+    <circle cx="150" cy="400" r="7" fill="url(#starGradient)" opacity="0.8"/>
+    <circle cx="850" cy="400" r="5" fill="url(#starGradient)" opacity="0.7"/>
+    <circle cx="400" cy="150" r="6" fill="url(#starGradient)" opacity="0.6"/>
+    <circle cx="600" cy="100" r="8" fill="url(#starGradient)" opacity="0.8"/>
+  </g>
+  
+  <!-- 달 -->
+  <g filter="url(#glow)">
+    <!-- 달의 그림자 부분 -->
+    <path d="M512 200 C 600 200, 680 280, 680 380 C 680 480, 600 560, 512 560 C 424 560, 344 480, 344 380 C 344 280, 424 200, 512 200 Z" fill="url(#moonGradient)" opacity="0.3"/>
+    
+    <!-- 달의 밝은 부분 -->
+    <path d="M512 220 C 580 220, 640 280, 640 360 C 640 440, 580 500, 512 500 C 444 500, 384 440, 384 360 C 384 280, 444 220, 512 220 Z" fill="url(#moonGradient)"/>
+    
+    <!-- 달의 크레이터들 -->
+    <ellipse cx="480" cy="320" rx="25" ry="15" fill="url(#moonGradient)" opacity="0.2"/>
+    <ellipse cx="540" cy="380" rx="20" ry="12" fill="url(#moonGradient)" opacity="0.15"/>
+    <ellipse cx="500" cy="420" rx="15" ry="8" fill="url(#moonGradient)" opacity="0.1"/>
+  </g>
+  
+  <!-- 중앙 텍스트/심볼 -->
+  <g>
+    <!-- 꿈을 나타내는 구름 모양 -->
+    <path d="M512 650 C 480 650, 450 680, 450 720 C 450 760, 480 790, 512 790 C 544 790, 574 760, 574 720 C 574 680, 544 650, 512 650 Z" fill="url(#moonGradient)" opacity="0.8"/>
+    <path d="M480 720 C 460 720, 440 740, 440 760 C 440 780, 460 800, 480 800 C 500 800, 520 780, 520 760 C 520 740, 500 720, 480 720 Z" fill="url(#moonGradient)" opacity="0.8"/>
+    <path d="M544 720 C 524 720, 504 740, 504 760 C 504 780, 524 800, 544 800 C 564 800, 584 780, 584 760 C 584 740, 564 720, 544 720 Z" fill="url(#moonGradient)" opacity="0.8"/>
+  </g>
+  
+  <!-- 하단 장식 요소들 -->
+  <g opacity="0.6">
+    <circle cx="200" cy="800" r="4" fill="url(#starGradient)"/>
+    <circle cx="824" cy="800" r="4" fill="url(#starGradient)"/>
+    <circle cx="150" cy="700" r="3" fill="url(#starGradient)"/>
+    <circle cx="874" cy="700" r="3" fill="url(#starGradient)"/>
+  </g>
+</svg>
