@@ -34,7 +34,7 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ visible, onClose }) => {
     setIsSubmitting(true);
     
     try {
-      await FeedbackService.saveFeedback({
+      await FeedbackService.saveSuggestion({
         id: Date.now().toString(),
         content: feedback.trim(),
         type: 'suggestion',

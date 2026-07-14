@@ -22,7 +22,7 @@ export class BackupService {
       const feedback = await FeedbackService.getFeedback();
       
       // 설정 데이터 가져오기
-      const theme = await AsyncStorage.getItem('appTheme') || 'light';
+      const theme = await AsyncStorage.getItem('theme') || 'light';
       const notificationSettings = await AsyncStorage.getItem('notification_settings') || '{}';
 
       const backupData: BackupData = {
@@ -155,7 +155,7 @@ export class BackupService {
         await AsyncStorage.setItem('dream_feedback', JSON.stringify(backupData.feedback));
         
         if (backupData.settings.theme) {
-          await AsyncStorage.setItem('appTheme', backupData.settings.theme);
+          await AsyncStorage.setItem('theme', backupData.settings.theme);
         }
         
         if (backupData.settings.notifications) {
@@ -187,10 +187,9 @@ export class BackupService {
       
       const lastBackupDate = await AsyncStorage.getItem('lastBackupDate');
       
-      // 백업 크기 계산 (대략적)
       const backupData = await this.createBackup();
       const jsonString = JSON.stringify(backupData);
-      const sizeInBytes = new Blob([jsonString]).size;
+      const sizeInBytes = unescape(encodeURIComponent(jsonString)).length;
       const sizeInKB = (sizeInBytes / 1024).toFixed(2);
 
       return {
