@@ -5,13 +5,13 @@ AI 기반 꿈 해석 및 기억 복원 모바일 애플리케이션
 ## 📱 주요 기능
 
 ### 🔮 꿈 해석
-- **AI 기반 해석**: OpenAI GPT를 활용한 정확하고 상세한 꿈 해석
-- **오프라인 지원**: 네트워크 연결이 없을 때도 기본 해석 엔진으로 동작
+- **로컬 AI 해석**: Ollama / LM Studio 등 로컬 LLM을 활용한 꿈 해석
+- **오프라인 폴백**: 로컬 AI에 연결할 수 없을 때 기본 해석 엔진으로 동작
 - **다양한 꿈 테마**: 20가지 이상의 꿈 테마별 맞춤 해석
 - **해석 기록 저장**: 모든 꿈 해석 결과를 로컬에 안전하게 저장
 
 ### 🧠 기억 복원
-- **AI 기반 질문**: 망각된 기억을 되살리는 맞춤형 질문 생성
+- **로컬 AI 질문**: 망각된 기억을 되살리는 맞춤형 질문 생성
 - **단계별 복원**: 체계적인 질문을 통한 점진적 기억 복원
 - **감정 분석**: 기억과 관련된 감정 상태 분석
 
@@ -21,7 +21,7 @@ AI 기반 꿈 해석 및 기억 복원 모바일 애플리케이션
 - **월별/연도별 통계**: 시간대별 꿈 해석 통계
 
 ### ⚙️ 설정 및 관리
-- **다크/라이트 모드**: 사용자 선호에 따른 테마 전환
+- **다크/라이트 모드**: 사용자 상황에 따른 테마 전환
 - **알림 설정**: 꿈 기록 알림 및 리마인더 설정
 - **데이터 백업**: 꿈 기록 내보내기/가져오기 기능
 - **피드백 시스템**: 개발자에게 개선사항 제안
@@ -33,22 +33,33 @@ AI 기반 꿈 해석 및 기억 복원 모바일 애플리케이션
 ## 🛠 기술 스택
 
 - **Frontend**: React Native, TypeScript
-- **AI Integration**: OpenAI GPT API
+- **AI Integration**: 로컬 LLM (Ollama / LM Studio, OpenAI 호환 API)
 - **State Management**: React Context API
 - **Local Storage**: AsyncStorage
 - **Navigation**: React Navigation
 - **Notifications**: Expo Notifications
 - **Build System**: Expo (EAS Build)
-- **Advertising**: Kakao AdFit
+- **Advertising**: Google AdMob
 
 ## 🚀 설치 및 실행
 
 ### 필수 요구사항
-- Node.js 18+ 
+- Node.js 18+
 - npm 또는 yarn
 - Expo CLI
+- 로컬 AI 서버 (Ollama 또는 LM Studio 권장)
 - iOS Simulator (iOS 개발용)
 - Android Studio (Android 개발용)
+
+### 로컬 AI 준비 (Ollama 예시)
+
+```bash
+# Ollama 설치 후 모델 다운로드
+ollama pull llama3.2
+
+# 서버가 http://localhost:11434 에서 실행 중인지 확인
+ollama serve
+```
 
 ### 설치 방법
 
@@ -68,10 +79,23 @@ npm install
 # .env 파일 생성
 cp env.example .env
 
-# .env 파일에 OpenAI API 키 추가
-EXPO_PUBLIC_OPENAI_API_KEY=your_openai_api_key_here
-EXPO_PUBLIC_ADFIT_UNIT_ID=your_adfit_unit_id_here
+# .env 파일에서 로컬 AI 설정 확인/수정
+EXPO_PUBLIC_LOCAL_AI_BASE_URL=http://localhost:11434/v1
+EXPO_PUBLIC_LOCAL_AI_MODEL=llama3.2
+EXPO_PUBLIC_LOCAL_AI_API_KEY=local-ai
+EXPO_PUBLIC_ADMOB_UNIT_ID=your_admob_unit_id_here
 ```
+
+**플랫폼별 base URL 참고**
+
+| 환경 | URL |
+|------|-----|
+| iOS 시뮬레이터 / 웹 | `http://localhost:11434/v1` |
+| Android 에뮬레이터 | `http://10.0.2.2:11434/v1` (기본값으로 자동 적용) |
+| 실기기 | PC의 LAN IP, 예: `http://192.168.0.10:11434/v1` |
+| LM Studio | `http://localhost:1234/v1` (포트는 앱 설정 확인) |
+
+`EXPO_PUBLIC_LOCAL_AI_BASE_URL`을 비워 두면 iOS/웹은 localhost, Android 에뮬레이터는 `10.0.2.2`로 자동 설정됩니다.
 
 4. **개발 서버 실행**
 ```bash
@@ -120,6 +144,7 @@ src/
 │   ├── SettingsScreen.tsx # 설정 화면
 │   └── SplashScreen.tsx # 스플래시 화면
 └── services/            # 비즈니스 로직
+    ├── LocalAIService.ts # 로컬 AI (Ollama/LM Studio) 클라이언트
     ├── DreamStorage.ts  # 꿈 데이터 저장
     ├── NetworkService.ts # 네트워크 상태 관리
     ├── NotificationService.ts # 알림 관리
@@ -130,9 +155,9 @@ src/
 ## 🔐 보안 및 개인정보
 
 - **로컬 저장**: 모든 꿈 기록은 디바이스에 로컬로 저장
-- **API 키 보안**: 환경 변수를 통한 안전한 API 키 관리
-- **개인정보 보호**: 사용자 데이터는 외부로 전송되지 않음
-- **오프라인 지원**: 네트워크 없이도 기본 기능 사용 가능
+- **로컬 AI**: 꿈/기억 텍스트는 클라우드 API가 아닌 로컬 LLM으로 처리
+- **개인정보 보호**: 외부 OpenAI 등으로 데이터가 전송되지 않음
+- **폴백 해석**: 로컬 AI 서버가 없어도 기본 규칙 엔진으로 동작
 
 ## 🤝 기여하기
 
@@ -154,7 +179,7 @@ src/
 
 ## 🙏 감사의 말
 
-- OpenAI GPT API
+- Ollama / LM Studio 로컬 AI 생태계
 - Expo 개발팀
 - React Native 커뮤니티
 - 모든 사용자들의 피드백과 지원
