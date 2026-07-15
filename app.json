@@ -15,6 +15,11 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.qlsl1198.DreamInterpreterApp",
+      "infoPlist": {
+        "NSAppTransportSecurity": {
+          "NSAllowsLocalNetworking": true
+        }
+      },
       "config": {
         "googleMobileAdsAppId": "ca-app-pub-7625170441500776~9406449557"
       }
@@ -26,6 +31,7 @@
       },
       "edgeToEdgeEnabled": true,
       "package": "com.qlsl1198.DreamInterpreterApp",
+      "usesCleartextTraffic": true,
       "config": {
         "googleMobileAdsAppId": "ca-app-pub-7625170441500776~9406449557"
       }

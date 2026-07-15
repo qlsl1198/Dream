@@ -10,8 +10,8 @@ import {
   Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import OpenAI from 'openai';
 import { useTheme } from '../contexts/ThemeContext';
+import { LocalAIService } from '../services/LocalAIService';
 
 interface MemoryRecord {
   id: string;
@@ -23,21 +23,8 @@ interface MemoryRecord {
   recoveredMemory?: string;
 }
 
-// AI 기반 기억 복원 엔진
+// 로컬 AI 기반 기억 복원 엔진 (Ollama / LM Studio)
 class AIMemoryRecovery {
-  private openai: OpenAI;
-
-  constructor() {
-    // 환경 변수 디버깅
-    console.log('MemoryScreen - EXPO_PUBLIC_OPENAI_API_KEY from env:', process.env.EXPO_PUBLIC_OPENAI_API_KEY);
-    console.log('MemoryScreen - All env vars:', process.env);
-    
-    this.openai = new OpenAI({
-      apiKey: process.env.EXPO_PUBLIC_OPENAI_API_KEY,
-      dangerouslyAllowBrowser: true
-    });
-  }
-
   async generateQuestions(description: string): Promise<string[]> {
     try {
       const prompt = `다음 상황에 대해 기억을 복원하기 위한 구체적이고 도움이 되는 질문 5개를 생성해주세요:
@@ -53,39 +40,36 @@ class AIMemoryRecovery {
 
 각 질문을 한 줄씩 작성해주세요.`;
 
-      const completion = await this.openai.chat.completions.create({
-        model: "gpt-3.5-turbo",
-        messages: [
+      const response = await LocalAIService.chatCompletion(
+        [
           {
-            role: "system",
-            content: "당신은 기억 복원 전문가입니다. 사람들이 잊어버린 기억을 되찾을 수 있도록 도와주는 구체적이고 유용한 질문을 만듭니다."
+            role: 'system',
+            content:
+              '당신은 기억 복원 전문가입니다. 사람들이 잊어버린 기억을 되찾을 수 있도록 도와주는 구체적이고 유용한 질문을 만듭니다.',
           },
           {
-            role: "user",
-            content: prompt
-          }
+            role: 'user',
+            content: prompt,
+          },
         ],
-        max_tokens: 500,
-        temperature: 0.7,
-      });
+        { maxTokens: 500, temperature: 0.7 }
+      );
 
-      const response = completion.choices[0]?.message?.content || '';
+      if (!response) {
+        return this.getFallbackQuestions();
+      }
+
       return response.split('\n').filter(line => line.trim()).slice(0, 5);
-      
     } catch (error) {
-      console.error('AI 질문 생성 오류:', error);
-      // 폴백 질문들
-      return [
-        '그때 누구와 함께 있었나요?',
-        '어떤 계절이었나요?',
-        '어디서 일어난 일인가요?',
-        '그때 어떤 소리가 들렸나요?',
-        '그때 어떤 기분이었나요?'
-      ];
+      console.error('로컬 AI 질문 생성 오류:', error);
+      return this.getFallbackQuestions();
     }
   }
 
-  async analyzeMemory(description: string, clues: string[]): Promise<{ analysis: string; recoveredMemory: string }> {
+  async analyzeMemory(
+    description: string,
+    clues: string[]
+  ): Promise<{ analysis: string; recoveredMemory: string }> {
     try {
       const prompt = `다음 정보를 바탕으로 기억을 복원하고 분석해주세요:
 
@@ -100,37 +84,53 @@ ${clues.map((clue, index) => `${index + 1}. ${clue}`).join('\n')}
 
 한국어로 답변해주세요.`;
 
-      const completion = await this.openai.chat.completions.create({
-        model: "gpt-3.5-turbo",
-        messages: [
+      const response = await LocalAIService.chatCompletion(
+        [
           {
-            role: "system",
-            content: "당신은 기억 복원 전문가입니다. 단편적인 기억들을 연결하여 완전한 기억으로 재구성하고, 그 의미를 분석합니다."
+            role: 'system',
+            content:
+              '당신은 기억 복원 전문가입니다. 단편적인 기억들을 연결하여 완전한 기억으로 재구성하고, 그 의미를 분석합니다.',
           },
           {
-            role: "user",
-            content: prompt
-          }
+            role: 'user',
+            content: prompt,
+          },
         ],
-        max_tokens: 800,
-        temperature: 0.7,
-      });
+        { maxTokens: 800, temperature: 0.7 }
+      );
 
-      const response = completion.choices[0]?.message?.content || '';
+      if (!response) {
+        return this.getFallbackAnalysis();
+      }
+
       return this.parseMemoryResponse(response);
-      
     } catch (error) {
-      console.error('AI 기억 분석 오류:', error);
-      return {
-        analysis: 'AI 분석 중 오류가 발생했습니다. 수집된 단서들을 바탕으로 스스로 기억을 연결해보세요.',
-        recoveredMemory: '기억 복원을 위해 더 많은 단서가 필요할 수 있습니다.'
-      };
+      console.error('로컬 AI 기억 분석 오류:', error);
+      return this.getFallbackAnalysis();
     }
+  }
+
+  private getFallbackQuestions(): string[] {
+    return [
+      '그때 누구와 함께 있었나요?',
+      '어떤 계절이었나요?',
+      '어디서 일어난 일인가요?',
+      '그때 어떤 소리가 들렸나요?',
+      '그때 어떤 기분이었나요?',
+    ];
+  }
+
+  private getFallbackAnalysis(): { analysis: string; recoveredMemory: string } {
+    return {
+      analysis:
+        '로컬 AI 분석 중 오류가 발생했습니다. 수집된 단서들을 바탕으로 스스로 기억을 연결해보세요.',
+      recoveredMemory: '기억 복원을 위해 더 많은 단서가 필요할 수 있습니다.',
+    };
   }
 
   private parseMemoryResponse(response: string): { analysis: string; recoveredMemory: string } {
     const lines = response.split('\n').filter(line => line.trim());
-    
+
     let analysis = '';
     let recoveredMemory = '';
 
