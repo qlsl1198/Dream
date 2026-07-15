@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -10,162 +10,80 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import { APP_CONFIG } from '../constants/AppConfig';
 
 interface SplashScreenProps {
   onStart: () => void;
 }
 
-const { width, height } = Dimensions.get('window');
+const { width } = Dimensions.get('window');
 
 export default function SplashScreen({ onStart }: SplashScreenProps) {
   const [fadeAnim] = useState(new Animated.Value(0));
-  const [scaleAnim] = useState(new Animated.Value(0.8));
-  const [slideAnim] = useState(new Animated.Value(50));
+  const [scaleAnim] = useState(new Animated.Value(0.85));
   const [pulseAnim] = useState(new Animated.Value(1));
 
   useEffect(() => {
-    // 초기 애니메이션
     Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 1500,
-        useNativeDriver: true,
-      }),
-      Animated.spring(scaleAnim, {
-        toValue: 1,
-        tension: 50,
-        friction: 7,
-        useNativeDriver: true,
-      }),
-      Animated.timing(slideAnim, {
-        toValue: 0,
-        duration: 1200,
-        useNativeDriver: true,
-      }),
+      Animated.timing(fadeAnim, { toValue: 1, duration: 1100, useNativeDriver: true }),
+      Animated.spring(scaleAnim, { toValue: 1, tension: 48, friction: 7, useNativeDriver: true }),
     ]).start();
 
-    // 펄스 애니메이션
-    const pulseAnimation = Animated.loop(
+    const pulse = Animated.loop(
       Animated.sequence([
-        Animated.timing(pulseAnim, {
-          toValue: 1.1,
-          duration: 2000,
-          useNativeDriver: true,
-        }),
-        Animated.timing(pulseAnim, {
-          toValue: 1,
-          duration: 2000,
-          useNativeDriver: true,
-        }),
+        Animated.timing(pulseAnim, { toValue: 1.08, duration: 1800, useNativeDriver: true }),
+        Animated.timing(pulseAnim, { toValue: 1, duration: 1800, useNativeDriver: true }),
       ])
     );
-    pulseAnimation.start();
-
-    return () => {
-      pulseAnimation.stop();
-    };
+    pulse.start();
+    return () => pulse.stop();
   }, []);
 
   const handleStart = () => {
-    Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 0,
-        duration: 500,
-        useNativeDriver: true,
-      }),
-      Animated.timing(scaleAnim, {
-        toValue: 1.2,
-        duration: 500,
-        useNativeDriver: true,
-      }),
-    ]).start(() => {
-      onStart();
-    });
+    Animated.timing(fadeAnim, { toValue: 0, duration: 350, useNativeDriver: true }).start(onStart);
   };
 
   return (
     <SafeAreaView style={styles.container}>
-      <LinearGradient
-        colors={['#667eea', '#764ba2', '#f093fb']}
-        style={styles.gradient}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-      >
+      <LinearGradient colors={['#0B1426', '#162740', '#1F3352']} style={styles.gradient}>
+        <View style={styles.stars}>
+          {[...Array(12)].map((_, i) => (
+            <View
+              key={i}
+              style={[
+                styles.star,
+                {
+                  top: `${(i * 47) % 80}%` as `${number}%`,
+                  left: `${(i * 73) % 90}%` as `${number}%`,
+                  opacity: 0.25 + (i % 5) * 0.1,
+                },
+              ]}
+            />
+          ))}
+        </View>
+
         <Animated.View
           style={[
             styles.content,
-            {
-              opacity: fadeAnim,
-              transform: [
-                { scale: scaleAnim },
-                { translateY: slideAnim }
-              ]
-            }
+            { opacity: fadeAnim, transform: [{ scale: scaleAnim }] },
           ]}
         >
-          {/* 앱 아이콘 */}
-          <Animated.View
-            style={[
-              styles.iconContainer,
-              { transform: [{ scale: pulseAnim }] }
-            ]}
-          >
+          <Animated.View style={[styles.iconContainer, { transform: [{ scale: pulseAnim }] }]}>
             <View style={styles.iconBackground}>
-              <Ionicons name="moon" size={60} color="#fff" />
+              <Ionicons name="moon" size={56} color="#E8D5A3" />
             </View>
           </Animated.View>
 
-          {/* 앱 제목 */}
-          <View style={styles.titleContainer}>
-            <Text style={styles.appName}>Dream Interpreter</Text>
-            <Text style={styles.appSubtitle}>꿈 해석 & 기억 복원</Text>
-          </View>
+          <Text style={styles.appName}>{APP_CONFIG.name}</Text>
+          <Text style={styles.appSubtitle}>{APP_CONFIG.tagline}</Text>
+          <Text style={styles.description}>
+            잠에서 깨어난 순간을 기록하고{'\n'}상징과 AI로 의미를 찾아보세요
+          </Text>
 
-          {/* 설명 텍스트 */}
-          <View style={styles.descriptionContainer}>
-            <Text style={styles.description}>
-              AI가 당신의 꿈을 해석하고{'\n'}
-              잊혀진 기억을 복원해드립니다
-            </Text>
-          </View>
-
-          {/* 시작 버튼 */}
-          <TouchableOpacity
-            style={styles.startButton}
-            onPress={handleStart}
-            activeOpacity={0.8}
-          >
-            <LinearGradient
-              colors={['#ff6b6b', '#ee5a24']}
-              style={styles.startButtonGradient}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-            >
-              <Ionicons name="play" size={24} color="#fff" />
-              <Text style={styles.startButtonText}>시작하기</Text>
-            </LinearGradient>
+          <TouchableOpacity style={styles.startButton} onPress={handleStart} activeOpacity={0.85}>
+            <Text style={styles.startButtonText}>시작하기</Text>
+            <Ionicons name="arrow-forward" size={18} color="#0B1426" />
           </TouchableOpacity>
-
-          {/* 하단 정보 */}
-          <View style={styles.footerContainer}>
-            <Text style={styles.footerText}>
-              터치하여 꿈의 세계로 떠나보세요
-            </Text>
-            <View style={styles.featuresContainer}>
-              <View style={styles.featureItem}>
-                <Ionicons name="moon-outline" size={16} color="#fff" />
-                <Text style={styles.featureText}>꿈 해석</Text>
-              </View>
-              <View style={styles.featureItem}>
-                <Ionicons name="search-outline" size={16} color="#fff" />
-                <Text style={styles.featureText}>기억 복원</Text>
-              </View>
-              <View style={styles.featureItem}>
-                <Ionicons name="time-outline" size={16} color="#fff" />
-                <Text style={styles.featureText}>기록 관리</Text>
-              </View>
-            </View>
-          </View>
         </Animated.View>
       </LinearGradient>
     </SafeAreaView>
@@ -173,112 +91,65 @@ export default function SplashScreen({ onStart }: SplashScreenProps) {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  gradient: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+  container: { flex: 1, backgroundColor: '#0B1426' },
+  gradient: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  stars: { ...StyleSheet.absoluteFillObject },
+  star: {
+    position: 'absolute',
+    width: 3,
+    height: 3,
+    borderRadius: 1.5,
+    backgroundColor: '#E8D5A3',
   },
   content: {
-    flex: 1,
-    justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 40,
-    width: '100%',
+    paddingHorizontal: 36,
+    width: Math.min(width, 420),
   },
-  iconContainer: {
-    marginBottom: 40,
-  },
+  iconContainer: { marginBottom: 28 },
   iconBackground: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    width: 110,
+    height: 110,
+    borderRadius: 55,
+    backgroundColor: 'rgba(232, 213, 163, 0.12)',
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 3,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
-  },
-  titleContainer: {
-    alignItems: 'center',
-    marginBottom: 30,
+    borderWidth: 1,
+    borderColor: 'rgba(232, 213, 163, 0.4)',
   },
   appName: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#fff',
-    textAlign: 'center',
+    fontSize: 36,
+    fontWeight: '800',
+    color: '#F7F3EA',
+    letterSpacing: 1,
     marginBottom: 8,
-    textShadowColor: 'rgba(0, 0, 0, 0.3)',
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 4,
   },
   appSubtitle: {
-    fontSize: 16,
-    color: 'rgba(255, 255, 255, 0.9)',
-    textAlign: 'center',
-    fontWeight: '500',
-  },
-  descriptionContainer: {
-    marginBottom: 50,
-  },
-  description: {
-    fontSize: 16,
-    color: 'rgba(255, 255, 255, 0.8)',
-    textAlign: 'center',
-    lineHeight: 24,
-  },
-  startButton: {
-    marginBottom: 60,
-    borderRadius: 25,
-    overflow: 'hidden',
-    elevation: 5,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-  },
-  startButtonGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 40,
-    paddingVertical: 16,
-  },
-  startButtonText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginLeft: 8,
-  },
-  footerContainer: {
-    alignItems: 'center',
-    position: 'absolute',
-    bottom: 60,
-    left: 0,
-    right: 0,
-  },
-  footerText: {
     fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.7)',
-    textAlign: 'center',
+    color: '#E8D5A3',
+    fontWeight: '600',
     marginBottom: 20,
   },
-  featuresContainer: {
+  description: {
+    fontSize: 15,
+    color: 'rgba(247, 243, 234, 0.72)',
+    textAlign: 'center',
+    lineHeight: 24,
+    marginBottom: 40,
+  },
+  startButton: {
+    backgroundColor: '#E8D5A3',
+    borderRadius: 16,
+    paddingHorizontal: 36,
+    paddingVertical: 16,
     flexDirection: 'row',
-    justifyContent: 'space-around',
-    width: '100%',
-    paddingHorizontal: 40,
-  },
-  featureItem: {
     alignItems: 'center',
+    gap: 8,
   },
-  featureText: {
-    fontSize: 12,
-    color: 'rgba(255, 255, 255, 0.8)',
-    marginTop: 4,
-    fontWeight: '500',
+  startButtonText: {
+    color: '#0B1426',
+    fontSize: 17,
+    fontWeight: '800',
+    marginRight: 6,
   },
 });

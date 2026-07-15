@@ -3,56 +3,61 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export type Theme = 'light' | 'dark';
 
+export interface ThemeColors {
+  background: string;
+  surface: string;
+  primary: string;
+  secondary: string;
+  accent: string;
+  text: string;
+  textSecondary: string;
+  border: string;
+  success: string;
+  warning: string;
+  error: string;
+  inputBackground: string;
+  inputBorder: string;
+  shadow: string;
+}
+
 interface ThemeContextType {
   theme: Theme;
   toggleTheme: () => void;
-  colors: {
-    background: string;
-    surface: string;
-    primary: string;
-    secondary: string;
-    text: string;
-    textSecondary: string;
-    border: string;
-    success: string;
-    warning: string;
-    error: string;
-    inputBackground: string;
-    inputBorder: string;
-    shadow: string;
-  };
+  colors: ThemeColors;
 }
 
-const lightColors = {
-  background: '#f8fafc',
-  surface: '#ffffff',
-  primary: '#6366f1',
-  secondary: '#8b5cf6',
-  text: '#1f2937',
-  textSecondary: '#6b7280',
-  border: '#e5e7eb',
-  success: '#10b981',
-  warning: '#f59e0b',
-  error: '#ef4444',
-  inputBackground: '#ffffff',
-  inputBorder: '#e5e7eb',
-  shadow: 'rgba(0, 0, 0, 0.1)',
+const lightColors: ThemeColors = {
+  background: '#F4F7FB',
+  surface: '#FFFFFF',
+  primary: '#1E3A5F',
+  secondary: '#3D5A80',
+  accent: '#C4A35A',
+  text: '#152238',
+  textSecondary: '#5B6B7C',
+  border: '#D8E0EA',
+  success: '#2F9E7B',
+  warning: '#D97706',
+  error: '#DC2626',
+  inputBackground: '#FFFFFF',
+  inputBorder: '#D8E0EA',
+  shadow: 'rgba(21, 34, 56, 0.08)',
 };
 
-const darkColors = {
-  background: '#0f172a',
-  surface: '#1e293b',
-  primary: '#818cf8',
-  secondary: '#a78bfa',
-  text: '#f1f5f9',
-  textSecondary: '#94a3b8',
-  border: '#334155',
-  success: '#34d399',
-  warning: '#fbbf24',
-  error: '#f87171',
-  inputBackground: '#334155',
-  inputBorder: '#475569',
-  shadow: 'rgba(0, 0, 0, 0.3)',
+const darkColors: ThemeColors = {
+  background: '#0B1426',
+  surface: '#162033',
+  primary: '#7BA3D4',
+  secondary: '#9BB4D4',
+  accent: '#E8D5A3',
+  text: '#F2F5F9',
+  textSecondary: '#9AA8B8',
+  border: '#2A3A52',
+  success: '#34D399',
+  warning: '#FBBF24',
+  error: '#F87171',
+  inputBackground: '#1C2A40',
+  inputBorder: '#2A3A52',
+  shadow: 'rgba(0, 0, 0, 0.35)',
 };
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
@@ -65,12 +70,8 @@ export const useTheme = () => {
   return context;
 };
 
-interface ThemeProviderProps {
-  children: React.ReactNode;
-}
-
-export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
-  const [theme, setTheme] = useState<Theme>('light');
+export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [theme, setTheme] = useState<Theme>('dark');
 
   useEffect(() => {
     loadTheme();
@@ -79,7 +80,7 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   const loadTheme = async () => {
     try {
       const savedTheme = await AsyncStorage.getItem('theme');
-      if (savedTheme && (savedTheme === 'light' || savedTheme === 'dark')) {
+      if (savedTheme === 'light' || savedTheme === 'dark') {
         setTheme(savedTheme);
       }
     } catch (error) {
@@ -97,16 +98,8 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
     }
   };
 
-  const colors = theme === 'light' ? lightColors : darkColors;
-
-  const value: ThemeContextType = {
-    theme,
-    toggleTheme,
-    colors,
-  };
-
   return (
-    <ThemeContext.Provider value={value}>
+    <ThemeContext.Provider value={{ theme, toggleTheme, colors: theme === 'light' ? lightColors : darkColors }}>
       {children}
     </ThemeContext.Provider>
   );

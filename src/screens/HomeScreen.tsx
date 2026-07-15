@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -247,23 +247,17 @@ export default function HomeScreen() {
   const { colors } = useTheme();
   const [dreamContent, setDreamContent] = useState('');
   const [emotion, setEmotion] = useState('');
+  const [dreamType, setDreamType] = useState<DreamTypeKey>('normal');
+  const [vividness, setVividness] = useState(5);
+  const [sleepQuality, setSleepQuality] = useState(5);
+  const [tagsInput, setTagsInput] = useState('');
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [analysisResult, setAnalysisResult] = useState<any>(null);
   const [loadingProgress, setLoadingProgress] = useState(0);
+  const [analysisResult, setAnalysisResult] = useState<DreamAnalysisResult | null>(null);
   const [currentDreamId, setCurrentDreamId] = useState<string | null>(null);
   const [isLocalAIOffline, setIsLocalAIOffline] = useState(false);
   const [fadeAnim] = useState(new Animated.Value(0));
-  const [slideAnim] = useState(new Animated.Value(50));
-  const [scaleAnim] = useState(new Animated.Value(0.95));
-
-  const emotions = [
-    { key: 'joy', label: '기쁨', emoji: '😊' },
-    { key: 'sadness', label: '슬픔', emoji: '😢' },
-    { key: 'fear', label: '두려움', emoji: '😨' },
-    { key: 'anger', label: '분노', emoji: '😠' },
-    { key: 'surprise', label: '놀람', emoji: '😲' },
-    { key: 'neutral', label: '평온', emoji: '😌' },
-  ];
 
   useEffect(() => {
     Animated.parallel([
@@ -356,8 +350,8 @@ export default function HomeScreen() {
   };
 
   const handleAnalyzeDream = async () => {
-    if (!dreamContent.trim()) {
-      Alert.alert('알림', '꿈 내용을 입력해주세요.');
+    if (dreamContent.trim().length < APP_CONFIG.minDreamLength) {
+      Alert.alert('알림', `꿈 내용을 ${APP_CONFIG.minDreamLength}자 이상 입력해주세요.`);
       return;
     }
 
@@ -375,56 +369,31 @@ export default function HomeScreen() {
       return;
     }
 
+    runAnalysis(false);
+  };
+
+  const runAnalysis = async (offline: boolean) => {
     setIsAnalyzing(true);
     setLoadingProgress(0);
-    
-    // 로딩 진행률 시뮬레이션
+    setAnalysisResult(null);
+
     const progressInterval = setInterval(() => {
-      setLoadingProgress(prev => {
-        if (prev >= 90) {
-          clearInterval(progressInterval);
-          return 90;
-        }
-        return prev + Math.random() * 15;
-      });
+      setLoadingProgress((prev) => (prev >= 90 ? 90 : prev + Math.random() * 12));
     }, 200);
-    
+
     try {
-      const result = await dreamInterpreter.analyzeDream(dreamContent, emotion);
+      const result = await dreamInterpreter.analyzeDream(dreamContent, emotion, offline);
       clearInterval(progressInterval);
       setLoadingProgress(100);
-      setAnalysisResult(result);
-      
-      // 꿈 기록 저장
-      const dreamId = Date.now().toString();
-      const dreamRecord: DreamRecord = {
-        id: dreamId,
-        content: dreamContent,
-        emotion: emotion,
-        interpretation: result.interpretation,
-        date: new Date().toISOString().split('T')[0],
-        confidence: result.confidence,
-        recommendations: result.recommendations,
-      };
-      
-      await DreamStorage.saveDream(dreamRecord);
-      setCurrentDreamId(dreamId);
-      
+      await saveAndShowResult(result);
+
       Alert.alert(
-        '꿈 해석 완료',
-        '꿈이 해석되어 기록에 저장되었습니다.',
-        [
-          {
-            text: '확인',
-            onPress: () => {
+        offline ? '오프라인 해석 완료' : '꿈 해석 완료',
+        '기록이 저장되었습니다. 아래에서 결과를 확인하세요.'
+      );
       setDreamContent('');
       setEmotion('');
-              // 해석 결과는 유지하여 사용자가 계속 볼 수 있도록 합니다.
-            },
-          },
-        ]
-      );
-      
+      setTagsInput('');
     } catch (error) {
       console.error('꿈 해석 오류:', error);
       clearInterval(progressInterval);
@@ -437,237 +406,179 @@ export default function HomeScreen() {
 
   const handleFeedback = async (isHelpful: boolean) => {
     if (!currentDreamId) return;
-    
     try {
-      await FeedbackService.saveFeedback({
+      await FeedbackService.saveInterpretationFeedback({
         dreamId: currentDreamId,
         isAccurate: isHelpful,
         helpfulness: isHelpful ? 5 : 1,
         timestamp: new Date().toISOString(),
       });
-      
-      Alert.alert(
-        '피드백 감사합니다',
-        isHelpful ? '도움이 되었다니 기쁩니다!' : '더 나은 해석을 위해 노력하겠습니다.',
-        [{ text: '확인' }]
-      );
+      Alert.alert('감사합니다', isHelpful ? '도움이 되었다니 기쁩니다!' : '더 나은 해석을 위해 반영할게요.');
     } catch (error) {
       console.error('피드백 저장 오류:', error);
     }
   };
 
-  const renderEmotionSelector = () => (
-    <View style={styles.emotionSection}>
-      <Text style={[styles.sectionTitle, { color: colors.text }]}>꿈의 감정</Text>
-      <View style={styles.emotionGrid}>
-        {emotions.map((emotionItem) => (
+  const ScorePicker = ({
+    label,
+    value,
+    onChange,
+  }: {
+    label: string;
+    value: number;
+    onChange: (n: number) => void;
+  }) => (
+    <View style={styles.scoreBlock}>
+      <Text style={[styles.scoreLabel, { color: colors.text }]}>
+        {label} · {value}/10
+      </Text>
+      <View style={styles.scoreRow}>
+        {[2, 4, 6, 8, 10].map((n) => (
           <TouchableOpacity
-            key={emotionItem.key}
+            key={n}
             style={[
-              styles.emotionButton,
-              { 
-                backgroundColor: colors.surface,
-                borderColor: colors.border 
+              styles.scoreChip,
+              {
+                backgroundColor: value === n ? colors.primary : colors.surface,
+                borderColor: value === n ? colors.primary : colors.border,
               },
-              emotion === emotionItem.key && {
-                backgroundColor: colors.primary,
-                borderColor: colors.primary
-              }
             ]}
-            onPress={() => setEmotion(emotionItem.key)}
-            activeOpacity={0.7}
+            onPress={() => onChange(n)}
           >
-            <Text style={styles.emotionEmoji}>{emotionItem.emoji}</Text>
-            <Text style={[
-              styles.emotionLabel,
-              { color: colors.text },
-              emotion === emotionItem.key && { color: '#fff' }
-            ]}>
-              {emotionItem.label}
-            </Text>
+            <Text style={{ color: value === n ? '#fff' : colors.text, fontWeight: '600', fontSize: 12 }}>{n}</Text>
           </TouchableOpacity>
         ))}
       </View>
     </View>
   );
 
-  const renderLoadingState = () => {
-    if (!isAnalyzing) return null;
-
-    return (
-      <View style={styles.loadingSection}>
-        <View style={styles.loadingHeader}>
-          <Ionicons name="hourglass-outline" size={20} color={colors.primary} />
-          <Text style={[styles.loadingTitle, { color: colors.text }]}>꿈을 분석하고 있어요...</Text>
-        </View>
-        
-        <View style={[styles.loadingCard, { 
-          backgroundColor: colors.surface,
-          borderColor: colors.border 
-        }]}>
-          <View style={styles.progressContainer}>
-            <View style={[styles.progressBar, { backgroundColor: colors.border }]}>
-              <Animated.View 
-                style={[
-                  styles.progressFill, 
-                  { 
-                    width: `${loadingProgress}%`,
-                    backgroundColor: colors.primary 
-                  }
-                ]} 
-              />
-            </View>
-            <Text style={[styles.progressText, { color: colors.text }]}>
-              {Math.round(loadingProgress)}%
-            </Text>
-          </View>
-          
-          <Text style={[styles.loadingDescription, { color: colors.textSecondary }]}>
-            AI가 꿈의 내용을 분석하고 있습니다.{'\n'}잠시만 기다려주세요.
-          </Text>
-        </View>
-      </View>
-    );
-  };
-
-  const renderAnalysisResult = () => {
-    if (!analysisResult) return null;
-
-    return (
-      <View style={styles.resultSection}>
-        <View style={styles.resultHeader}>
-          <Ionicons name="sparkles" size={20} color={colors.primary} />
-          <Text style={[styles.resultTitle, { color: colors.text }]}>꿈 해석 결과</Text>
-        </View>
-        
-        <View style={[styles.resultCard, { 
-          backgroundColor: colors.surface,
-          borderColor: colors.border 
-        }]}>
-          <View style={styles.confidenceContainer}>
-            <Text style={[styles.confidenceLabel, { color: colors.text }]}>해석 신뢰도</Text>
-            <View style={styles.confidenceBarContainer}>
-              <View style={styles.confidenceBar}>
-                <View 
-                  style={[
-                    styles.confidenceFill, 
-                    { width: `${analysisResult.confidence * 100}%` }
-                  ]} 
-                />
-              </View>
-              <Text style={[styles.confidenceText, { color: colors.text }]}>
-                {Math.round(analysisResult.confidence * 100)}%
-              </Text>
-            </View>
-          </View>
-
-          <View style={styles.interpretationContainer}>
-            <Text style={[styles.interpretationTitle, { color: colors.text }]}>해석</Text>
-            <Text style={[styles.interpretationText, { color: colors.text }]}>
-              {analysisResult.interpretation}
-            </Text>
-          </View>
-
-          <View style={styles.recommendationsContainer}>
-            <Text style={[styles.recommendationsTitle, { color: colors.text }]}>추천 활동</Text>
-            {analysisResult.recommendations.map((recommendation: string, index: number) => (
-              <View key={index} style={styles.recommendationItem}>
-                <View style={[styles.recommendationBullet, { backgroundColor: colors.primary }]} />
-                <Text style={[styles.recommendationText, { color: colors.text }]}>{recommendation}</Text>
-              </View>
-            ))}
-          </View>
-          
-          {/* 피드백 섹션 */}
-          <View style={styles.feedbackContainer}>
-            <Text style={[styles.feedbackTitle, { color: colors.text }]}>해석이 도움이 되었나요?</Text>
-            <View style={styles.feedbackButtons}>
-              <TouchableOpacity
-                style={[styles.feedbackButton, { backgroundColor: colors.success }]}
-                onPress={() => handleFeedback(true)}
-              >
-                <Ionicons name="thumbs-up" size={16} color="#fff" />
-                <Text style={styles.feedbackButtonText}>도움됨</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.feedbackButton, { backgroundColor: colors.error }]}
-                onPress={() => handleFeedback(false)}
-              >
-                <Ionicons name="thumbs-down" size={16} color="#fff" />
-                <Text style={styles.feedbackButtonText}>도움안됨</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </View>
-    );
-  };
-
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-      <ScrollView 
-        style={styles.scrollView} 
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
-      >
-        <Animated.View 
-          style={[
-            styles.content,
-            {
-              opacity: fadeAnim,
-              transform: [
-                { translateY: slideAnim },
-                { scale: scaleAnim }
-              ]
-            }
-          ]}
-        >
-          <View style={styles.inputSection}>
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>꿈 내용</Text>
-            <View style={styles.inputContainer}>
-              <TextInput
-                style={[styles.dreamInput, { 
-                  backgroundColor: colors.inputBackground,
-                  borderColor: colors.inputBorder,
-                  color: colors.text 
-                }]}
-                placeholder="꿈에서 기억나는 내용을 자유롭게 적어주세요..."
-                placeholderTextColor={colors.textSecondary}
-                value={dreamContent}
-                onChangeText={setDreamContent}
-                multiline
-                numberOfLines={4}
-                textAlignVertical="top"
-                accessibilityLabel="꿈 내용 입력"
-                accessibilityHint="꿈에서 기억나는 내용을 자유롭게 적어주세요"
-                accessibilityRole="text"
-              />
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+        <Animated.View style={{ opacity: fadeAnim, padding: 20 }}>
+          <View style={styles.topHeader}>
+            <View>
+              <Text style={[styles.brand, { color: colors.accent }]}>{APP_CONFIG.name}</Text>
+              <Text style={[styles.heading, { color: colors.text }]}>오늘의 꿈을 남겨보세요</Text>
             </View>
+            {streak && (
+              <View style={[styles.streakBadge, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                <Ionicons name="flame" size={16} color={colors.warning} />
+                <Text style={[styles.streakText, { color: colors.text }]}>{streak.currentStreak}일</Text>
+              </View>
+            )}
           </View>
 
-          {renderEmotionSelector()}
+          {isOffline && (
+            <View style={[styles.offlineBanner, { backgroundColor: colors.warning }]}>
+              <Ionicons name="cloud-offline-outline" size={16} color="#fff" />
+              <Text style={styles.offlineText}>오프라인 해석 모드</Text>
+            </View>
+          )}
+
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>꿈 내용</Text>
+          <TextInput
+            style={[
+              styles.dreamInput,
+              {
+                backgroundColor: colors.inputBackground,
+                borderColor: colors.inputBorder,
+                color: colors.text,
+              },
+            ]}
+            placeholder="장면, 인물, 감정, 장소를 자유롭게 적어주세요..."
+            placeholderTextColor={colors.textSecondary}
+            value={dreamContent}
+            onChangeText={setDreamContent}
+            multiline
+            textAlignVertical="top"
+            maxLength={APP_CONFIG.maxDreamLength}
+          />
+          <Text style={[styles.counter, { color: colors.textSecondary }]}>
+            {dreamContent.length}/{APP_CONFIG.maxDreamLength}
+          </Text>
+
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>감정</Text>
+          <View style={styles.emotionGrid}>
+            {EMOTIONS.map((item) => (
+              <TouchableOpacity
+                key={item.key}
+                style={[
+                  styles.emotionButton,
+                  {
+                    backgroundColor: emotion === item.key ? colors.primary : colors.surface,
+                    borderColor: emotion === item.key ? colors.primary : colors.border,
+                  },
+                ]}
+                onPress={() => setEmotion(item.key)}
+              >
+                <Text style={styles.emotionEmoji}>{item.emoji}</Text>
+                <Text style={{ color: emotion === item.key ? '#fff' : colors.text, fontSize: 12, fontWeight: '600' }}>
+                  {item.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          <TouchableOpacity style={styles.advancedToggle} onPress={() => setShowAdvanced(!showAdvanced)}>
+            <Text style={{ color: colors.primary, fontWeight: '600' }}>
+              {showAdvanced ? '상세 옵션 숨기기' : '상세 옵션 (유형·생생함·태그)'}
+            </Text>
+            <Ionicons name={showAdvanced ? 'chevron-up' : 'chevron-down'} size={16} color={colors.primary} />
+          </TouchableOpacity>
+
+          {showAdvanced && (
+            <View style={[styles.advancedBox, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+              <Text style={[styles.sectionTitle, { color: colors.text, marginTop: 0 }]}>꿈 유형</Text>
+              <View style={styles.typeRow}>
+                {DREAM_TYPES.map((type) => (
+                  <TouchableOpacity
+                    key={type.key}
+                    style={[
+                      styles.typeChip,
+                      {
+                        backgroundColor: dreamType === type.key ? colors.primary : colors.background,
+                        borderColor: dreamType === type.key ? colors.primary : colors.border,
+                      },
+                    ]}
+                    onPress={() => setDreamType(type.key)}
+                  >
+                    <Text style={{ color: dreamType === type.key ? '#fff' : colors.text, fontSize: 12, fontWeight: '600' }}>
+                      {type.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              <ScorePicker label="생생함" value={vividness} onChange={setVividness} />
+              <ScorePicker label="수면 품질" value={sleepQuality} onChange={setSleepQuality} />
+
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>태그</Text>
+              <TextInput
+                style={[
+                  styles.tagInput,
+                  {
+                    backgroundColor: colors.inputBackground,
+                    borderColor: colors.inputBorder,
+                    color: colors.text,
+                  },
+                ]}
+                placeholder="예: 학교, 가족, 반복꿈"
+                placeholderTextColor={colors.textSecondary}
+                value={tagsInput}
+                onChangeText={setTagsInput}
+              />
+            </View>
+          )}
 
           <TouchableOpacity
-            style={[
-              styles.analyzeButton, 
-              { backgroundColor: colors.primary },
-              isAnalyzing && styles.analyzeButtonDisabled
-            ]}
+            style={[styles.analyzeButton, { backgroundColor: colors.primary }, isAnalyzing && styles.disabled]}
             onPress={handleAnalyzeDream}
             disabled={isAnalyzing}
-            activeOpacity={0.7}
-            accessibilityLabel={isAnalyzing ? '꿈 해석 중' : '꿈 해석하기'}
-            accessibilityHint="꿈 내용을 분석하여 해석을 제공합니다"
-            accessibilityRole="button"
+            activeOpacity={0.8}
           >
-            <Ionicons 
-              name={isAnalyzing ? "hourglass-outline" : "sparkles"} 
-              size={20} 
-              color="#fff" 
-            />
-            <Text style={styles.analyzeButtonText}>
-              {isAnalyzing ? '해석 중...' : '꿈 해석하기'}
-            </Text>
+            <Ionicons name={isAnalyzing ? 'hourglass-outline' : 'sparkles'} size={20} color="#fff" />
+            <Text style={styles.analyzeButtonText}>{isAnalyzing ? '해석 중...' : '꿈 해석하기'}</Text>
           </TouchableOpacity>
 
           {isLocalAIOffline && (
@@ -676,18 +587,83 @@ export default function HomeScreen() {
               <Text style={styles.offlineText}>로컬 AI 연결 없음 - 기본 해석만 제공됩니다</Text>
             </View>
           )}
-          {renderLoadingState()}
-          {renderAnalysisResult()}
-          
-          {/* AdMob 배너 광고 */}
-          <AdMobBanner
-            unitId={process.env.EXPO_PUBLIC_ADMOB_UNIT_ID}
-            adSize="BANNER" // 표준 배너 크기 (320x50)
-            onAdLoaded={() => console.log('AdMob 광고 로드 완료')}
-            onAdFailedToLoad={(error) => console.log('AdMob 광고 로드 실패:', error)}
-            onAdClicked={() => console.log('AdMob 광고 클릭')}
-            style={{ marginTop: 20 }}
-          />
+
+          {analysisResult && (
+            <View style={styles.resultSection}>
+              <View style={styles.resultHeader}>
+                <Ionicons name="sparkles" size={18} color={colors.accent} />
+                <Text style={[styles.resultTitle, { color: colors.text }]}>
+                  해석 결과 · {analysisResult.source === 'ai' ? 'AI' : '오프라인'}
+                </Text>
+              </View>
+
+              <View style={[styles.resultCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                <Text style={[styles.summary, { color: colors.accent }]}>{analysisResult.summary}</Text>
+
+                <View style={styles.confidenceRow}>
+                  <Text style={{ color: colors.textSecondary, fontSize: 13 }}>신뢰도</Text>
+                  <Text style={{ color: colors.text, fontWeight: '700' }}>
+                    {Math.round(analysisResult.confidence * 100)}%
+                  </Text>
+                </View>
+                <View style={[styles.progressBar, { backgroundColor: colors.border, marginBottom: 14 }]}>
+                  <View
+                    style={[
+                      styles.progressFill,
+                      {
+                        width: `${analysisResult.confidence * 100}%`,
+                        backgroundColor: colors.success,
+                      },
+                    ]}
+                  />
+                </View>
+
+                <Text style={[styles.blockTitle, { color: colors.text }]}>해석</Text>
+                <Text style={[styles.bodyText, { color: colors.text }]}>{analysisResult.interpretation}</Text>
+
+                {analysisResult.matchedSymbols.length > 0 && (
+                  <>
+                    <Text style={[styles.blockTitle, { color: colors.text }]}>감지된 상징</Text>
+                    <View style={styles.symbolRow}>
+                      {analysisResult.matchedSymbols.map((s) => (
+                        <View key={s} style={[styles.symbolChip, { borderColor: colors.accent }]}>
+                          <Text style={{ color: colors.text, fontSize: 12 }}>{s}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  </>
+                )}
+
+                <Text style={[styles.blockTitle, { color: colors.text }]}>추천</Text>
+                {analysisResult.recommendations.map((r) => (
+                  <View key={r} style={styles.recoRow}>
+                    <View style={[styles.bullet, { backgroundColor: colors.primary }]} />
+                    <Text style={[styles.bodyText, { color: colors.textSecondary, flex: 1 }]}>{r}</Text>
+                  </View>
+                ))}
+
+                <Text style={[styles.feedbackTitle, { color: colors.text }]}>도움이 되었나요?</Text>
+                <View style={styles.feedbackButtons}>
+                  <TouchableOpacity
+                    style={[styles.feedbackButton, { backgroundColor: colors.success }]}
+                    onPress={() => handleFeedback(true)}
+                  >
+                    <Ionicons name="thumbs-up" size={16} color="#fff" />
+                    <Text style={styles.feedbackButtonText}>도움됨</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.feedbackButton, { backgroundColor: colors.error }]}
+                    onPress={() => handleFeedback(false)}
+                  >
+                    <Ionicons name="thumbs-down" size={16} color="#fff" />
+                    <Text style={styles.feedbackButtonText}>별로예요</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
+          )}
+
+          <AdMobBanner adSize="BANNER" style={{ marginTop: 16 }} />
         </Animated.View>
       </ScrollView>
     </SafeAreaView>
@@ -695,297 +671,106 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingBottom: 20,
-  },
-  content: {
-    padding: 20,
-  },
-  inputSection: {
-    marginBottom: 24,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 12,
-  },
-  inputContainer: {
-    borderRadius: 12,
+  container: { flex: 1 },
+  scrollContent: { paddingBottom: 28 },
+  topHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 },
+  brand: { fontSize: 13, fontWeight: '700', letterSpacing: 1.5, marginBottom: 4 },
+  heading: { fontSize: 22, fontWeight: '700' },
+  streakBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
     borderWidth: 1,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
-  },
-  dreamInput: {
-    padding: 16,
-    fontSize: 16,
-    minHeight: 100,
-    textAlignVertical: 'top',
-  },
-  emotionSection: {
-    marginBottom: 24,
-  },
-  emotionGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-  },
-  emotionButton: {
-    width: '30%',
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
-  },
-  emotionButtonSelected: {
-    backgroundColor: '#6366f1',
-    borderColor: '#6366f1',
-  },
-  emotionEmoji: {
-    fontSize: 24,
-    marginBottom: 6,
-  },
-  emotionLabel: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: '#6b7280',
-  },
-  emotionLabelSelected: {
-    color: '#fff',
-    fontWeight: '600',
-  },
-  analyzeButton: {
-    backgroundColor: '#6366f1',
-    borderRadius: 12,
-    padding: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 24,
-    shadowColor: '#6366f1',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  analyzeButtonDisabled: {
-    backgroundColor: '#9ca3af',
-    shadowColor: '#9ca3af',
-  },
-  analyzeButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-    marginLeft: 8,
-  },
-  resultSection: {
-    marginTop: 8,
-  },
-  resultHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  resultTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#374151',
-    marginLeft: 8,
-  },
-  resultCard: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  confidenceContainer: {
-    marginBottom: 16,
-  },
-  confidenceLabel: {
-    fontSize: 14,
-    color: '#6b7280',
-    marginBottom: 8,
-    fontWeight: '500',
-  },
-  confidenceBarContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  confidenceBar: {
-    flex: 1,
-    height: 8,
-    backgroundColor: '#e5e7eb',
-    borderRadius: 4,
-    overflow: 'hidden',
-    marginRight: 12,
-  },
-  confidenceFill: {
-    height: '100%',
-    backgroundColor: '#10b981',
-    borderRadius: 4,
-  },
-  confidenceText: {
-    fontSize: 12,
-    color: '#374151',
-    fontWeight: '600',
-    minWidth: 35,
-  },
-  // 로딩 상태 스타일
-  loadingSection: {
-    marginTop: 20,
-  },
-  loadingHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  loadingTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginLeft: 8,
-  },
-  loadingCard: {
-    padding: 20,
-    borderRadius: 12,
-    borderWidth: 1,
-  },
-  progressContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  progressBar: {
-    flex: 1,
-    height: 8,
-    borderRadius: 4,
-    overflow: 'hidden',
-    marginRight: 12,
-  },
-  progressFill: {
-    height: '100%',
-    borderRadius: 4,
-  },
-  progressText: {
-    fontSize: 12,
-    fontWeight: '600',
-    minWidth: 35,
-  },
-  loadingDescription: {
-    fontSize: 14,
-    lineHeight: 20,
-    textAlign: 'center',
-  },
-  // 피드백 스타일
-  feedbackContainer: {
-    marginTop: 20,
-    paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#e5e7eb',
-  },
-  feedbackTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    marginBottom: 12,
-    textAlign: 'center',
-  },
-  feedbackButtons: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-  },
-  feedbackButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
     borderRadius: 20,
-    minWidth: 100,
-    justifyContent: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
   },
-  feedbackButtonText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '600',
-    marginLeft: 6,
-  },
-  // 오프라인 배너 스타일
+  streakText: { fontWeight: '700', fontSize: 13, marginLeft: 4 },
   offlineBanner: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 8,
-    paddingHorizontal: 16,
-    marginTop: 16,
     borderRadius: 8,
+    marginBottom: 14,
   },
-  offlineText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: '600',
-    marginLeft: 6,
+  offlineText: { color: '#fff', fontSize: 12, fontWeight: '600', marginLeft: 6 },
+  sectionTitle: { fontSize: 15, fontWeight: '700', marginBottom: 10, marginTop: 8 },
+  dreamInput: {
+    borderWidth: 1,
+    borderRadius: 14,
+    padding: 16,
+    minHeight: 120,
+    fontSize: 16,
+    lineHeight: 24,
   },
-  interpretationContainer: {
-    marginBottom: 16,
+  counter: { textAlign: 'right', fontSize: 11, marginTop: 6, marginBottom: 8 },
+  emotionGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
+  emotionButton: {
+    width: '31%',
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: 'center',
+    marginBottom: 10,
+    borderWidth: 1,
   },
-  interpretationTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#374151',
-    marginBottom: 8,
+  emotionEmoji: { fontSize: 22, marginBottom: 4 },
+  advancedToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginVertical: 8,
   },
-  interpretationText: {
-    fontSize: 14,
-    color: '#6b7280',
-    lineHeight: 20,
+  advancedBox: { borderWidth: 1, borderRadius: 14, padding: 14, marginBottom: 8 },
+  typeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 },
+  typeChip: { borderWidth: 1, borderRadius: 16, paddingHorizontal: 12, paddingVertical: 8 },
+  scoreBlock: { marginBottom: 10 },
+  scoreLabel: { fontSize: 13, fontWeight: '600', marginBottom: 8 },
+  scoreRow: { flexDirection: 'row', gap: 8 },
+  scoreChip: {
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
   },
-  recommendationsContainer: {
-    marginTop: 4,
-  },
-  recommendationsTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#374151',
+  tagInput: { borderWidth: 1, borderRadius: 12, padding: 12, fontSize: 14 },
+  analyzeButton: {
+    borderRadius: 14,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 8,
     marginBottom: 12,
   },
-  recommendationItem: {
+  disabled: { opacity: 0.6 },
+  analyzeButtonText: { color: '#fff', fontSize: 16, fontWeight: '700', marginLeft: 8 },
+  loadingCard: { borderWidth: 1, borderRadius: 12, padding: 16, marginBottom: 12 },
+  progressBar: { height: 8, borderRadius: 4, overflow: 'hidden' },
+  progressFill: { height: '100%', borderRadius: 4 },
+  resultSection: { marginTop: 8 },
+  resultHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
+  resultTitle: { fontSize: 16, fontWeight: '700', marginLeft: 8 },
+  resultCard: { borderWidth: 1, borderRadius: 14, padding: 16 },
+  summary: { fontSize: 14, fontWeight: '700', marginBottom: 12 },
+  confidenceRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
+  blockTitle: { fontSize: 14, fontWeight: '700', marginTop: 12, marginBottom: 8 },
+  bodyText: { fontSize: 14, lineHeight: 22 },
+  symbolRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  symbolChip: { borderWidth: 1, borderRadius: 14, paddingHorizontal: 10, paddingVertical: 4 },
+  recoRow: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 8 },
+  bullet: { width: 5, height: 5, borderRadius: 3, marginTop: 8, marginRight: 10 },
+  feedbackTitle: { textAlign: 'center', fontWeight: '600', marginTop: 18, marginBottom: 10 },
+  feedbackButtons: { flexDirection: 'row', justifyContent: 'space-around' },
+  feedbackButton: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginBottom: 8,
+    alignItems: 'center',
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderRadius: 20,
+    minWidth: 110,
+    justifyContent: 'center',
   },
-  recommendationBullet: {
-    width: 4,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: '#6366f1',
-    marginTop: 8,
-    marginRight: 12,
-  },
-  recommendationText: {
-    fontSize: 13,
-    color: '#6b7280',
-    flex: 1,
-    lineHeight: 18,
-  },
+  feedbackButtonText: { color: '#fff', fontWeight: '600', marginLeft: 6 },
 });

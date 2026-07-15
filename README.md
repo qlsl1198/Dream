@@ -1,8 +1,8 @@
-# 🌙 Dream Interpreter App
+# 드림로그 (DreamLog)
 
-AI 기반 꿈 해석 및 기억 복원 모바일 애플리케이션
+AI 꿈 일기 · 해몽 · 한국형 상징 사전 모바일 앱
 
-## 📱 주요 기능
+## 주요 기능
 
 ### 🔮 꿈 해석
 - **로컬 AI 해석**: Ollama / LM Studio 등 로컬 LLM을 활용한 꿈 해석
@@ -15,10 +15,7 @@ AI 기반 꿈 해석 및 기억 복원 모바일 애플리케이션
 - **단계별 복원**: 체계적인 질문을 통한 점진적 기억 복원
 - **감정 분석**: 기억과 관련된 감정 상태 분석
 
-### 📊 통계 분석
-- **꿈 패턴 분석**: 자주 나타나는 꿈 테마와 패턴 분석
-- **감정 추이**: 꿈을 통한 감정 변화 추적
-- **월별/연도별 통계**: 시간대별 꿈 해석 통계
+React Native (Expo 53), TypeScript, AsyncStorage, Expo Notifications, Google Mobile Ads, OpenAI API
 
 ### ⚙️ 설정 및 관리
 - **다크/라이트 모드**: 사용자 상황에 따른 테마 전환
@@ -72,11 +69,6 @@ cd Dream
 2. **의존성 설치**
 ```bash
 npm install
-```
-
-3. **환경 변수 설정**
-```bash
-# .env 파일 생성
 cp env.example .env
 
 # .env 파일에서 로컬 AI 설정 확인/수정
@@ -109,21 +101,12 @@ npx expo start --ios
 npx expo start --android
 ```
 
-## 📱 빌드 및 배포
+## 스토어 빌드
 
-### Android APK 빌드
 ```bash
-# EAS Build를 사용한 프로덕션 빌드
-npx eas build --platform android --profile production
-```
-
-### iOS 빌드
-```bash
-# iOS 시뮬레이터용 빌드
-npx expo run:ios
-
-# iOS 디바이스용 빌드
 npx eas build --platform ios --profile production
+npx eas build --platform android --profile production
+npx eas submit --platform ios --profile production
 ```
 
 ## 🔧 프로젝트 구조
@@ -177,13 +160,14 @@ src/
 - **피드백**: 앱 내 피드백 기능 사용
 - **후원**: 앱 내 후원 기능을 통한 개발 지원
 
-## 🙏 감사의 말
+- [PRIVACY.md](./PRIVACY.md)
+- [TERMS.md](./TERMS.md)
 
 - Ollama / LM Studio 로컬 AI 생태계
 - Expo 개발팀
 - React Native 커뮤니티
 - 모든 사용자들의 피드백과 지원
 
----
+## 버전
 
-**Dream Interpreter App**으로 더 나은 꿈과 기억을 경험해보세요! 🌙✨
+1.1.0 — 앱스토어 출시 대비 고도화 (온보딩, 상징 사전, 일기 확장, 법적 고지, UX/버그픽스)
