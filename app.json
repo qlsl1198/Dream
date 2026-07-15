@@ -1,16 +1,16 @@
 {
   "expo": {
-    "name": "DreamInterpreterApp",
+    "name": "드림로그",
     "slug": "DreamInterpreterApp",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#0B1426"
     },
     "ios": {
       "supportsTablet": true,
@@ -22,12 +22,30 @@
       },
       "config": {
         "googleMobileAdsAppId": "ca-app-pub-7625170441500776~9406449557"
+      },
+      "privacyManifests": {
+        "NSPrivacyAccessedAPITypes": [
+          {
+            "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryUserDefaults",
+            "NSPrivacyAccessedAPITypeReasons": ["CA92.1"]
+          }
+        ],
+        "NSPrivacyTracking": true,
+        "NSPrivacyTrackingDomains": [],
+        "NSPrivacyCollectedDataTypes": [
+          {
+            "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypeProductInteraction",
+            "NSPrivacyCollectedDataTypeLinked": false,
+            "NSPrivacyCollectedDataTypeTracking": false,
+            "NSPrivacyCollectedDataTypePurposes": ["NSPrivacyCollectedDataTypePurposeAppFunctionality"]
+          }
+        ]
       }
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/icon.png",
-        "backgroundColor": "#ffffff"
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0B1426"
       },
       "edgeToEdgeEnabled": true,
       "package": "com.qlsl1198.DreamInterpreterApp",
@@ -42,12 +60,30 @@
     "plugins": [
       "expo-sqlite",
       "expo-font",
-      "expo-asset"
+      "expo-asset",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#1E3A5F",
+          "sounds": []
+        }
+      ],
+      [
+        "react-native-google-mobile-ads",
+        {
+          "androidAppId": "ca-app-pub-7625170441500776~9406449557",
+          "iosAppId": "ca-app-pub-7625170441500776~9406449557"
+        }
+      ]
     ],
     "extra": {
       "eas": {
         "projectId": "c662c0bc-094d-4b6e-8071-db7ae1c81757"
       }
+    },
+    "locales": {
+      "ko": "./languages/ko.json"
     }
   }
 }
