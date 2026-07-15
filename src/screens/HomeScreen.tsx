@@ -11,11 +11,10 @@ import {
   Animated,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import OpenAI from 'openai';
 import { useTheme } from '../contexts/ThemeContext';
 import { DreamStorage, DreamRecord } from '../services/DreamStorage';
 import { FeedbackService } from '../services/FeedbackService';
-import { NetworkService } from '../services/NetworkService';
+import { LocalAIService } from '../services/LocalAIService';
 import AdMobBanner, { ADMOB_AD_SIZES } from '../components/AdMobBanner';
 
 // 간단한 꿈 해석 엔진
@@ -135,48 +134,36 @@ class SimpleDreamInterpreter {
   }
 }
 
-// AI 기반 꿈 해석 엔진
+// 로컬 AI 기반 꿈 해석 엔진 (Ollama / LM Studio)
 class AIDreamInterpreter {
-  private openai: OpenAI;
-
-      constructor() {
-      // 환경 변수 디버깅
-      console.log('EXPO_PUBLIC_OPENAI_API_KEY from env:', process.env.EXPO_PUBLIC_OPENAI_API_KEY);
-      console.log('All env vars:', process.env);
-      
-      this.openai = new OpenAI({
-        apiKey: process.env.EXPO_PUBLIC_OPENAI_API_KEY,
-        dangerouslyAllowBrowser: true // React Native 환경에서 필요
-      });
-  }
+  private fallback = new SimpleDreamInterpreter();
 
   async analyzeDream(content: string, emotion: string = ''): Promise<any> {
     try {
       const prompt = this.createPrompt(content, emotion);
-      
-      const completion = await this.openai.chat.completions.create({
-        model: "gpt-3.5-turbo",
-        messages: [
+      const response = await LocalAIService.chatCompletion(
+        [
           {
-            role: "system",
-            content: "당신은 전문적인 꿈 해석가입니다. 꿈의 내용을 분석하여 심리적 의미와 해석을 제공하고, 실용적인 조언을 드립니다. 한국어로 답변해주세요."
+            role: 'system',
+            content:
+              '당신은 전문적인 꿈 해석가입니다. 꿈의 내용을 분석하여 심리적 의미와 해석을 제공하고, 실용적인 조언을 드립니다. 한국어로 답변해주세요.',
           },
           {
-            role: "user",
-            content: prompt
-          }
+            role: 'user',
+            content: prompt,
+          },
         ],
-        max_tokens: 1000,
-        temperature: 0.7,
-      });
+        { maxTokens: 1000, temperature: 0.7 }
+      );
 
-      const response = completion.choices[0]?.message?.content || '';
+      if (!response) {
+        return this.fallback.analyzeDream(content, emotion);
+      }
+
       return this.parseResponse(response);
-      
     } catch (error) {
-      console.error('OpenAI API 오류:', error);
-      // API 오류 시 폴백 로직
-      return this.getFallbackResponse(content, emotion);
+      console.error('로컬 AI 오류:', error);
+      return this.fallback.analyzeDream(content, emotion);
     }
   }
 
@@ -252,18 +239,6 @@ class AIDreamInterpreter {
     };
   }
 
-  private getFallbackResponse(content: string, emotion: string): any {
-    return {
-      themes: ['general'],
-      interpretation: '죄송합니다. 현재 AI 서비스에 일시적인 문제가 있습니다. 꿈은 우리의 무의식이 전달하는 중요한 메시지입니다. 꿈의 내용을 자세히 기록하고, 현재 상황과 연결지어 생각해보시기 바랍니다.',
-      confidence: 0.3,
-      recommendations: [
-        '꿈의 내용을 일기에 기록해보세요',
-        '현재 상황을 객관적으로 바라보세요',
-        '신뢰할 수 있는 사람과 대화해보세요'
-      ]
-    };
-  }
 }
 
 const dreamInterpreter = new AIDreamInterpreter();
@@ -276,7 +251,7 @@ export default function HomeScreen() {
   const [analysisResult, setAnalysisResult] = useState<any>(null);
   const [loadingProgress, setLoadingProgress] = useState(0);
   const [currentDreamId, setCurrentDreamId] = useState<string | null>(null);
-  const [isOffline, setIsOffline] = useState(false);
+  const [isLocalAIOffline, setIsLocalAIOffline] = useState(false);
   const [fadeAnim] = useState(new Animated.Value(0));
   const [slideAnim] = useState(new Animated.Value(50));
   const [scaleAnim] = useState(new Animated.Value(0.95));
@@ -310,26 +285,24 @@ export default function HomeScreen() {
       }),
     ]).start();
 
-    // 네트워크 상태 확인
-    checkNetworkStatus();
+    // 로컬 AI 서버 상태 확인
+    checkLocalAIStatus();
   }, []);
 
-  const checkNetworkStatus = async () => {
+  const checkLocalAIStatus = async () => {
     try {
-      const networkService = NetworkService.getInstance();
-      const isConnected = await networkService.checkInternetConnectivity();
-      setIsOffline(!isConnected);
+      const available = await LocalAIService.isAvailable();
+      setIsLocalAIOffline(!available);
     } catch (error) {
-      console.error('네트워크 상태 확인 오류:', error);
-      setIsOffline(true);
+      console.error('로컬 AI 상태 확인 오류:', error);
+      setIsLocalAIOffline(true);
     }
   };
 
-  const analyzeDreamOffline = async () => {
+  const analyzeDreamWithRuleEngine = async () => {
     setIsAnalyzing(true);
     setLoadingProgress(0);
-    
-    // 오프라인 로딩 시뮬레이션
+
     const progressInterval = setInterval(() => {
       setLoadingProgress(prev => {
         if (prev >= 100) {
@@ -339,14 +312,12 @@ export default function HomeScreen() {
         return prev + 20;
       });
     }, 300);
-    
+
     try {
-      // 기본 해석 엔진 사용
-      const result = await dreamInterpreter.analyzeDream(dreamContent, emotion);
+      const result = new SimpleDreamInterpreter().analyzeDream(dreamContent, emotion);
       clearInterval(progressInterval);
       setAnalysisResult(result);
-      
-      // 꿈 기록 저장
+
       const dreamId = Date.now().toString();
       const dreamRecord: DreamRecord = {
         id: dreamId,
@@ -357,13 +328,13 @@ export default function HomeScreen() {
         confidence: result.confidence,
         recommendations: result.recommendations,
       };
-      
+
       await DreamStorage.saveDream(dreamRecord);
       setCurrentDreamId(dreamId);
-      
+
       Alert.alert(
-        '꿈 해석 완료 (오프라인)',
-        '기본 해석이 완료되어 기록에 저장되었습니다.',
+        '꿈 해석 완료 (기본 엔진)',
+        '로컬 AI에 연결할 수 없어 기본 해석으로 저장되었습니다.',
         [
           {
             text: '확인',
@@ -374,9 +345,8 @@ export default function HomeScreen() {
           },
         ]
       );
-      
     } catch (error) {
-      console.error('오프라인 꿈 해석 오류:', error);
+      console.error('기본 엔진 꿈 해석 오류:', error);
       clearInterval(progressInterval);
       setLoadingProgress(0);
       Alert.alert('오류', '꿈 해석 중 오류가 발생했습니다.');
@@ -391,16 +361,15 @@ export default function HomeScreen() {
       return;
     }
 
-    // 네트워크 상태 재확인
-    await checkNetworkStatus();
-    
-    if (isOffline) {
+    await checkLocalAIStatus();
+
+    if (isLocalAIOffline) {
       Alert.alert(
-        '오프라인 상태',
-        '인터넷 연결을 확인해주세요. 오프라인에서는 기본 해석만 제공됩니다.',
+        '로컬 AI 연결 불가',
+        'Ollama/LM Studio가 실행 중인지 확인해주세요. 기본 해석 엔진으로 계속할 수 있습니다.',
         [
           { text: '취소', style: 'cancel' },
-          { text: '계속하기', onPress: () => analyzeDreamOffline() }
+          { text: '기본 해석 사용', onPress: () => analyzeDreamWithRuleEngine() },
         ]
       );
       return;
@@ -701,10 +670,10 @@ export default function HomeScreen() {
             </Text>
           </TouchableOpacity>
 
-          {isOffline && (
+          {isLocalAIOffline && (
             <View style={[styles.offlineBanner, { backgroundColor: colors.warning }]}>
               <Ionicons name="wifi-outline" size={16} color="#fff" />
-              <Text style={styles.offlineText}>오프라인 상태 - 기본 해석만 제공됩니다</Text>
+              <Text style={styles.offlineText}>로컬 AI 연결 없음 - 기본 해석만 제공됩니다</Text>
             </View>
           )}
           {renderLoadingState()}
