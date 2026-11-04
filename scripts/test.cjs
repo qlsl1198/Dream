@@ -47,6 +47,17 @@ function load(file) {
 }
 
 async function main() {
+  const { getEmotionIconName, EMOTION_ICONS } = load(root + '/src/utils/emotionVisuals.ts');
+  const emotionGlyphs = require(root + '/node_modules/@expo/vector-icons/build/vendor/react-native-vector-icons/glyphmaps/MaterialCommunityIcons.json');
+  assert.equal(Object.keys(EMOTION_ICONS).length, 6);
+  assert.equal(new Set(Object.values(EMOTION_ICONS)).size, 6);
+  for (const [emotion, icon] of Object.entries(EMOTION_ICONS)) {
+    assert.ok(Object.hasOwn(emotionGlyphs, icon));
+    assert.equal(getEmotionIconName(emotion), icon);
+    assert.ok(icon.endsWith('-outline'));
+  }
+  assert.equal(getEmotionIconName('unknown'), EMOTION_ICONS.neutral);
+  assert.equal(getEmotionIconName('__proto__'), EMOTION_ICONS.neutral);
   const { createDialoguePlayer, dialogueDelay } = load(root + '/src/utils/dialoguePlayer.ts');
   const pending = new Map(); let timerId = 0; let completions = 0; const typed = [];
   const schedule = callback => { const id = ++timerId; pending.set(id, callback); return id; };

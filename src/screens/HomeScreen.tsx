@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useIsFocused } from '@react-navigation/native';
 import { useCallback } from 'react';
 import DreamCompanion from '../components/DreamCompanion';
+import EmotionIcon from '../components/EmotionIcon';
 import DreamSceneCard from '../components/DreamSceneCard';
 import { dreamLayout } from '../constants/DreamDesign';
 import { useTheme } from '../contexts/ThemeContext';
@@ -216,7 +217,7 @@ export default function HomeScreen() {
             </View>
             {streak && (
               <View style={[styles.streakBadge, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                <Ionicons name="flame" size={16} color={colors.warning} />
+                <Ionicons name="flame-outline" size={16} color={colors.accent} />
                 <Text style={[styles.streakText, { color: colors.text }]}>{streak.currentStreak}일</Text>
               </View>
             )}
@@ -258,6 +259,9 @@ export default function HomeScreen() {
             {EMOTIONS.map((item) => (
               <TouchableOpacity
                 key={item.key}
+                accessibilityRole="button"
+                accessibilityLabel={item.label}
+                accessibilityState={{ selected: emotion === item.key }}
                 style={[
                   styles.emotionButton,
                   {
@@ -267,7 +271,7 @@ export default function HomeScreen() {
                 ]}
                 onPress={() => setEmotion(item.key)}
               >
-                <Text style={styles.emotionEmoji}>{item.emoji}</Text>
+                <View style={styles.emotionIcon}><EmotionIcon emotion={item.key} size={24} color={emotion === item.key ? colors.onAccent : colors.accent} /></View>
                 <Text style={{ color: emotion === item.key ? colors.onAccent : colors.text, fontSize: 12, fontWeight: '600' }}>
                   {item.label}
                 </Text>
@@ -276,10 +280,10 @@ export default function HomeScreen() {
           </View>
 
           <TouchableOpacity style={styles.advancedToggle} onPress={() => setShowAdvanced(!showAdvanced)}>
-            <Text style={{ color: colors.primary, fontWeight: '600' }}>
+            <Text style={{ color: colors.textSecondary, fontWeight: '600' }}>
               {showAdvanced ? '상세 옵션 숨기기' : '상세 옵션 (유형·생생함·태그)'}
             </Text>
-            <Ionicons name={showAdvanced ? 'chevron-up' : 'chevron-down'} size={16} color={colors.primary} />
+            <Ionicons name={showAdvanced ? 'chevron-up' : 'chevron-down'} size={16} color={colors.textSecondary} />
           </TouchableOpacity>
 
           {showAdvanced && (
@@ -474,7 +478,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     borderWidth: 1,
   },
-  emotionEmoji: { fontSize: 22, marginBottom: 4 },
+  emotionIcon: { marginBottom: 4 },
   advancedToggle: {
     flexDirection: 'row',
     alignItems: 'center',
