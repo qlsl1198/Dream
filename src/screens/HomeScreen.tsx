@@ -15,7 +15,6 @@ import { useTheme } from '../contexts/ThemeContext';
 import { DreamStorage, DreamRecord } from '../services/DreamStorage';
 import { FeedbackService } from '../services/FeedbackService';
 import { LocalAIService } from '../services/LocalAIService';
-import AdMobBanner, { ADMOB_AD_SIZES } from '../components/AdMobBanner';
 
 // 간단한 꿈 해석 엔진
 class SimpleDreamInterpreter {
@@ -663,7 +662,6 @@ export default function HomeScreen() {
             </View>
           )}
 
-          <AdMobBanner adSize="BANNER" style={{ marginTop: 16 }} />
         </Animated.View>
       </ScrollView>
     </SafeAreaView>

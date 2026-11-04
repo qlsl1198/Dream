@@ -4,7 +4,6 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { Platform } from 'react-native';
-import mobileAds, { MaxAdContentRating } from 'react-native-google-mobile-ads';
 
 import { ThemeProvider, useTheme } from './src/contexts/ThemeContext';
 import { OnboardingService } from './src/services/OnboardingService';
@@ -95,22 +94,6 @@ function AppContent() {
 }
 
 export default function App() {
-  useEffect(() => {
-    const initAds = async () => {
-      try {
-        await mobileAds().setRequestConfiguration({
-          maxAdContentRating: MaxAdContentRating.PG,
-          tagForChildDirectedTreatment: false,
-          tagForUnderAgeOfConsent: false,
-        });
-        await mobileAds().initialize();
-      } catch (error) {
-        console.log('AdMob 초기화 스킵/실패:', error);
-      }
-    };
-    initAds();
-  }, []);
-
   return (
     <ThemeProvider>
       <AppContent />
