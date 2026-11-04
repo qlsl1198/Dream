@@ -1,219 +1,73 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
-import { DreamStorage, DreamRecord } from './DreamStorage';
-import { FeedbackService, DreamFeedback } from './FeedbackService';
-
-export interface BackupData {
-  dreams: DreamRecord[];
-  feedback: DreamFeedback[];
-  settings: {
-    theme: string;
-    notifications: any;
-  };
-  exportDate: string;
-  version: string;
-}
+import { DreamStorage } from './DreamStorage';
+import { MemoryStorage } from './MemoryStorage';
+import { FeedbackService } from './FeedbackService';
+import { APP_CONFIG } from '../constants/AppConfig';
+import { parseBackup, escapeHTML } from './BackupValidation';
+import { withStorageLock } from './StorageQueue';
 
 export class BackupService {
-  static async createBackup(): Promise<BackupData> {
-    try {
-      const dreams = await DreamStorage.getDreams();
-      const feedback = await FeedbackService.getFeedback();
-      
-      // 설정 데이터 가져오기
-      const theme = await AsyncStorage.getItem('theme') || 'light';
-      const notificationSettings = await AsyncStorage.getItem('notification_settings') || '{}';
+  static async createBackup() {
+    const [dreams, memories] = await Promise.all([DreamStorage.getDreams(), MemoryStorage.getMemories()]);
+    return { dreams, memories, version: APP_CONFIG.version, schemaVersion: 2, exportDate: new Date().toISOString() };
+  }
 
-      const backupData: BackupData = {
-        dreams,
-        feedback,
-        settings: {
-          theme,
-          notifications: JSON.parse(notificationSettings),
-        },
-        exportDate: new Date().toISOString(),
-        version: '1.0.0',
-      };
-
-      return backupData;
-    } catch (error) {
-      console.error('백업 생성 오류:', error);
-      throw new Error('백업을 생성하는 중 오류가 발생했습니다.');
-    }
+  private static async exportFile(extension: string, content: string): Promise<string> {
+    if (!FileSystem.cacheDirectory) throw new Error('파일 저장소를 사용할 수 없습니다.');
+    const directory = FileSystem.cacheDirectory + 'dreamlog-exports/';
+    await FileSystem.makeDirectoryAsync(directory, { intermediates: true });
+    const uri = directory + 'dreamlog-' + Date.now() + '.' + extension;
+    await FileSystem.writeAsStringAsync(uri, content);
+    return uri;
   }
 
   static async exportToJSON(): Promise<string> {
-    try {
-      const backupData = await this.createBackup();
-      const jsonString = JSON.stringify(backupData, null, 2);
-      
-      const fileName = `dream_backup_${new Date().toISOString().split('T')[0]}.json`;
-      const fileUri = FileSystem.documentDirectory + fileName;
-      
-      await FileSystem.writeAsStringAsync(fileUri, jsonString);
-      
-      return fileUri;
-    } catch (error) {
-      console.error('JSON 내보내기 오류:', error);
-      throw new Error('JSON 파일을 내보내는 중 오류가 발생했습니다.');
-    }
+    return this.exportFile('json', JSON.stringify(await this.createBackup(), null, 2));
   }
 
-  static async exportToPDF(): Promise<string> {
-    try {
-      const backupData = await this.createBackup();
-      
-      // 간단한 HTML 형식으로 변환
-      let htmlContent = `
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <meta charset="UTF-8">
-          <title>꿈 기록 백업</title>
-          <style>
-            body { font-family: Arial, sans-serif; margin: 20px; }
-            .header { text-align: center; margin-bottom: 30px; }
-            .dream { margin-bottom: 20px; padding: 15px; border: 1px solid #ddd; border-radius: 8px; }
-            .dream-date { font-weight: bold; color: #666; }
-            .dream-content { margin: 10px 0; }
-            .dream-emotion { color: #007bff; }
-            .dream-interpretation { background-color: #f8f9fa; padding: 10px; border-radius: 4px; margin-top: 10px; }
-          </style>
-        </head>
-        <body>
-          <div class="header">
-            <h1>🌙 꿈 기록 백업</h1>
-            <p>내보내기 날짜: ${new Date(backupData.exportDate).toLocaleDateString('ko-KR')}</p>
-            <p>총 꿈 기록: ${backupData.dreams.length}개</p>
-          </div>
-      `;
-
-      backupData.dreams.forEach((dream, index) => {
-        htmlContent += `
-          <div class="dream">
-            <div class="dream-date">${new Date(dream.date).toLocaleDateString('ko-KR')}</div>
-            <div class="dream-content"><strong>꿈 내용:</strong> ${dream.content}</div>
-            <div class="dream-emotion"><strong>감정:</strong> ${dream.emotion}</div>
-            <div class="dream-interpretation">
-              <strong>해석:</strong> ${dream.interpretation}
-            </div>
-            ${dream.recommendations ? `
-              <div><strong>추천사항:</strong> ${dream.recommendations.join(', ')}</div>
-            ` : ''}
-          </div>
-        `;
-      });
-
-      htmlContent += `
-        </body>
-        </html>
-      `;
-
-      const fileName = `dream_backup_${new Date().toISOString().split('T')[0]}.html`;
-      const fileUri = FileSystem.documentDirectory + fileName;
-      
-      await FileSystem.writeAsStringAsync(fileUri, htmlContent);
-      
-      return fileUri;
-    } catch (error) {
-      console.error('PDF 내보내기 오류:', error);
-      throw new Error('PDF 파일을 내보내는 중 오류가 발생했습니다.');
-    }
+  static async exportToHTML(): Promise<string> {
+    const backup = await this.createBackup();
+    const body = backup.dreams.map(d => '<article><h2>' + escapeHTML(d.date) +
+      '</h2><p>' + escapeHTML(d.content) + '</p><p>' + escapeHTML(d.interpretation) + '</p></article>').join('');
+    return this.exportFile('html', '<!doctype html><html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>드림로그 기록</title><style>body{font-family:system-ui;padding:24px;max-width:720px;margin:auto}article{border-bottom:1px solid #ccc;padding:20px 0}p{white-space:pre-wrap;line-height:1.6}</style><h1>드림로그 꿈 기록</h1>' + body + '</html>');
   }
 
-  static async shareBackup(fileUri: string): Promise<void> {
-    try {
-      if (await Sharing.isAvailableAsync()) {
-        await Sharing.shareAsync(fileUri);
-      } else {
-        throw new Error('공유 기능을 사용할 수 없습니다.');
-      }
-    } catch (error) {
-      console.error('백업 공유 오류:', error);
-      throw new Error('백업을 공유하는 중 오류가 발생했습니다.');
-    }
+  static async shareBackup(uri: string): Promise<void> {
+    if (!(await Sharing.isAvailableAsync())) throw new Error('이 기기에서 파일 공유를 사용할 수 없습니다.');
+    try { await Sharing.shareAsync(uri); }
+    finally { await FileSystem.deleteAsync(uri, { idempotent: true }); }
   }
 
-  static async importFromJSON(fileUri: string): Promise<void> {
-    try {
-      const jsonString = await FileSystem.readAsStringAsync(fileUri);
-      const backupData: BackupData = JSON.parse(jsonString);
-
-      // 데이터 검증
-      if (!backupData.dreams || !Array.isArray(backupData.dreams)) {
-        throw new Error('잘못된 백업 파일 형식입니다.');
-      }
-
-      // 기존 데이터 백업
-      const existingDreams = await DreamStorage.getDreams();
-      const existingFeedback = await FeedbackService.getFeedback();
-
-      try {
-        // 새 데이터로 복원
-        await AsyncStorage.setItem('dream_records', JSON.stringify(backupData.dreams));
-        await AsyncStorage.setItem('dream_feedback', JSON.stringify(backupData.feedback));
-        
-        if (backupData.settings.theme) {
-          await AsyncStorage.setItem('theme', backupData.settings.theme);
-        }
-        
-        if (backupData.settings.notifications) {
-          await AsyncStorage.setItem('notification_settings', JSON.stringify(backupData.settings.notifications));
-        }
-
-        console.log('데이터 복원이 완료되었습니다.');
-      } catch (restoreError) {
-        // 복원 실패 시 기존 데이터로 되돌리기
-        await AsyncStorage.setItem('dream_records', JSON.stringify(existingDreams));
-        await AsyncStorage.setItem('dream_feedback', JSON.stringify(existingFeedback));
-        throw restoreError;
-      }
-    } catch (error) {
-      console.error('백업 가져오기 오류:', error);
-      throw new Error('백업을 가져오는 중 오류가 발생했습니다.');
-    }
-  }
-
-  static async getBackupInfo(): Promise<{
-    totalDreams: number;
-    totalFeedback: number;
-    lastBackupDate: string | null;
-    backupSize: string;
-  }> {
-    try {
+  /** Validates first; merges by id and preserves existing records on conflict. */
+  static async importFromJSON(uri: string): Promise<void> {
+    const info = await FileSystem.getInfoAsync(uri);
+    if (!info.exists || (info.size ?? 0) > 10 * 1024 * 1024) throw new Error('10MB 이하의 JSON 백업을 선택해주세요.');
+    const backup = parseBackup(await FileSystem.readAsStringAsync(uri));
+    await withStorageLock(async () => {
+      const keys = ['dream_records', 'memory_records'];
+      const previous = await AsyncStorage.multiGet(keys);
       const dreams = await DreamStorage.getDreams();
-      const feedback = await FeedbackService.getFeedback();
-      
-      const lastBackupDate = await AsyncStorage.getItem('lastBackupDate');
-      
-      const backupData = await this.createBackup();
-      const jsonString = JSON.stringify(backupData);
-      const sizeInBytes = unescape(encodeURIComponent(jsonString)).length;
-      const sizeInKB = (sizeInBytes / 1024).toFixed(2);
-
-      return {
-        totalDreams: dreams.length,
-        totalFeedback: feedback.length,
-        lastBackupDate,
-        backupSize: `${sizeInKB} KB`,
-      };
-    } catch (error) {
-      console.error('백업 정보 조회 오류:', error);
-      return {
-        totalDreams: 0,
-        totalFeedback: 0,
-        lastBackupDate: null,
-        backupSize: '0 KB',
-      };
-    }
+      const memories = await MemoryStorage.getMemories();
+      const merge = <T extends { id: string }>(incoming: T[], existing: T[]) =>
+        Array.from(new Map([...incoming, ...existing].map(item => [item.id, item])).values());
+      try {
+        await AsyncStorage.multiSet([
+          ['dream_records', JSON.stringify(merge(backup.dreams, dreams))],
+          ['memory_records', JSON.stringify(merge(backup.memories, memories))],
+        ]);
+      } catch (error) {
+        await AsyncStorage.multiSet(previous.map(([key, value]) => [key, value ?? '[]']));
+        throw error;
+      }
+    });
   }
 
-  static async saveLastBackupDate(): Promise<void> {
-    try {
-      await AsyncStorage.setItem('lastBackupDate', new Date().toISOString());
-    } catch (error) {
-      console.error('백업 날짜 저장 오류:', error);
-    }
+  static async getBackupInfo() {
+    const [backup, feedback, lastBackupDate] = await Promise.all([this.createBackup(), FeedbackService.getFeedback(), AsyncStorage.getItem('lastBackupDate')]);
+    return { totalDreams: backup.dreams.length, totalFeedback: feedback.length, lastBackupDate, backupSize: (JSON.stringify(backup).length / 1024).toFixed(2) + ' KB' };
   }
+
+  static async saveLastBackupDate(): Promise<void> { await AsyncStorage.setItem('lastBackupDate', new Date().toISOString()); }
 }
