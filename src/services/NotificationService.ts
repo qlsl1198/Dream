@@ -116,12 +116,17 @@ export class NotificationService {
   }
 
   static async saveNotificationSettings(settings: NotificationSettings): Promise<void> {
+    if (!Number.isInteger(settings.hour) || settings.hour < 0 || settings.hour > 23 ||
+        !Number.isInteger(settings.minute) || settings.minute < 0 || settings.minute > 59) {
+      throw new Error('올바른 알림 시간을 입력해주세요.');
+    }
     try {
-      await AsyncStorage.setItem(NOTIFICATION_SETTINGS_KEY, JSON.stringify(settings));
-
       await this.cancelAllNotifications();
 
-      if (!settings.enabled) return;
+      if (!settings.enabled) {
+        await AsyncStorage.setItem(NOTIFICATION_SETTINGS_KEY, JSON.stringify(settings));
+        return;
+      }
 
       await this.scheduleDreamReminder(settings.hour, settings.minute);
 
@@ -137,6 +142,7 @@ export class NotificationService {
       if (settings.tips) {
         await this.schedulePersonalizedTips();
       }
+      await AsyncStorage.setItem(NOTIFICATION_SETTINGS_KEY, JSON.stringify(settings));
     } catch (error) {
       console.error('알림 설정 저장 오류:', error);
       throw new Error('알림 설정을 저장하는 중 오류가 발생했습니다.');
