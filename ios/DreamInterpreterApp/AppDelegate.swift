@@ -76,10 +76,14 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
       ]
     }
     let sceneWindow = UIWindow(windowScene: windowScene)
+    let launchBackground = UIColor(red: 11.0 / 255, green: 20.0 / 255, blue: 38.0 / 255, alpha: 1)
+    sceneWindow.backgroundColor = launchBackground
     window = sceneWindow
     // Expo/RN modules still consult the app delegate's window property.
     appDelegate.window = sceneWindow
     factory.startReactNative(withModuleName: "main", in: sceneWindow, launchOptions: options)
+    // Match the launch storyboard while JavaScript restores local app state.
+    sceneWindow.rootViewController?.view.backgroundColor = launchBackground
     appDelegate.launchOptions = nil
 
     // Preserve Expo's subscriber chain as well as React Native's Linking API.

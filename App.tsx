@@ -78,14 +78,16 @@ function AppContent() {
 
   useEffect(() => {
     (async () => {
-      const done = await OnboardingService.hasCompletedOnboarding();
-      setPhase(done ? 'splash' : 'onboarding');
+      try {
+        const done = await OnboardingService.hasCompletedOnboarding();
+        setPhase(done ? 'main' : 'onboarding');
+      } catch { setPhase('onboarding'); }
     })();
   }, []);
 
   if (phase === 'loading') return null;
   if (phase === 'onboarding') {
-    return <OnboardingScreen onDone={() => setPhase('splash')} />;
+    return <OnboardingScreen onDone={() => setPhase('main')} />;
   }
   if (phase === 'splash') {
     return <SplashScreen onStart={() => setPhase('main')} />;
