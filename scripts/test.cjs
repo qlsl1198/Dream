@@ -47,6 +47,22 @@ function load(file) {
 }
 
 async function main() {
+  const { getCompanionReaction, getCompanionFrame, canAnimateCompanion, COMPANION_FRAMES } = load(root + '/src/utils/companionMood.ts');
+  assert.equal(getCompanionReaction({}).mood, 'idle');
+  assert.equal(getCompanionReaction({ emotion: 'joy' }).mood, 'happy');
+  assert.equal(getCompanionReaction({ emotion: 'neutral' }).mood, 'calm');
+  for (const emotion of ['sadness', 'fear', 'anger']) assert.equal(getCompanionReaction({ emotion }).mood, 'comfort');
+  assert.equal(getCompanionReaction({ emotion: 'surprise' }).mood, 'surprised');
+  assert.equal(getCompanionReaction({ emotion: 'unknown' }).mood, 'idle');
+  assert.equal(getCompanionReaction({ emotion: 'joy', interaction: 'calm' }).mood, 'calm');
+  assert.equal(getCompanionReaction({ celebrating: true, interaction: 'calm' }).mood, 'celebrate');
+  assert.equal(getCompanionReaction({ busy: true, celebrating: true, interaction: 'happy' }).mood, 'thinking');
+  assert.equal(getCompanionFrame('idle'), null);
+  assert.equal(getCompanionFrame('idle', true), 0);
+  assert.deepEqual(Object.values(COMPANION_FRAMES).sort(), [0, 1, 2, 3, 4, 5]);
+  for (const mood of Object.keys(COMPANION_FRAMES)) assert.equal(getCompanionFrame(mood, true), COMPANION_FRAMES[mood]);
+  assert.equal(canAnimateCompanion(false, true, true), true);
+  for (const args of [[true,true,true], [false,false,true], [false,true,false], [true,false,false]]) assert.equal(canAnimateCompanion(...args), false);
   const { DREAM_SYMBOLS, searchSymbols } = load(root + '/src/data/dreamSymbols.ts');
   const { getSymbolVisual, getSymbolColumns } = load(root + '/src/utils/symbolVisuals.ts');
   const glyphs = require(root + '/node_modules/@expo/vector-icons/build/vendor/react-native-vector-icons/glyphmaps/MaterialCommunityIcons.json');

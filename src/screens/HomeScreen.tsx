@@ -11,7 +11,7 @@ import {
   Animated,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useIsFocused } from '@react-navigation/native';
 import { useCallback } from 'react';
 import DreamCompanion from '../components/DreamCompanion';
 import DreamSceneCard from '../components/DreamSceneCard';
@@ -28,6 +28,7 @@ import { localDateKey } from '../utils/dreamHelpers';
 
 export default function HomeScreen() {
   const { colors } = useTheme();
+  const focused = useIsFocused();
   const [dreamContent, setDreamContent] = useState('');
   const [emotion, setEmotion] = useState('');
   const [dreamType, setDreamType] = useState<DreamTypeKey>('normal');
@@ -219,7 +220,7 @@ export default function HomeScreen() {
             )}
           </View>
 
-          <DreamCompanion count={dreamCount} busy={isAnalyzing} justSaved={analysisResult !== null} />
+          <DreamCompanion count={dreamCount} busy={isAnalyzing} justSaved={analysisResult !== null} emotion={emotion} focused={focused} />
 
           <View accessibilityLiveRegion="polite" style={[styles.offlineBanner, { backgroundColor: colors.surface }]}>
             <Ionicons name="shield-checkmark-outline" size={16} color={colors.accent} />
