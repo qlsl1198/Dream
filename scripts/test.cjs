@@ -95,9 +95,10 @@ async function main() {
   assert.equal(getCompanionReaction({ celebrating: true, interaction: 'calm' }).mood, 'celebrate');
   assert.equal(getCompanionReaction({ busy: true, celebrating: true, interaction: 'happy' }).mood, 'thinking');
   assert.equal(getCompanionFrame('idle'), null);
-  assert.equal(getCompanionFrame('idle', true), 0);
+  // Idle must never briefly switch the entire body to the closed-eye artwork.
+  for (let i = 0; i < 100; i++) assert.equal(getCompanionFrame('idle'), null);
   assert.deepEqual(Object.values(COMPANION_FRAMES).sort(), [0, 1, 2, 3, 4, 5]);
-  for (const mood of Object.keys(COMPANION_FRAMES)) assert.equal(getCompanionFrame(mood, true), COMPANION_FRAMES[mood]);
+  for (const mood of Object.keys(COMPANION_FRAMES)) assert.equal(getCompanionFrame(mood), COMPANION_FRAMES[mood]);
   assert.equal(canAnimateCompanion(false, true, true), true);
   for (const args of [[true,true,true], [false,false,true], [false,true,false], [true,false,false]]) assert.equal(canAnimateCompanion(...args), false);
   const { DREAM_SYMBOLS, searchSymbols } = load(root + '/src/data/dreamSymbols.ts');
