@@ -15,7 +15,7 @@ export default function MongiSprite({ mood }: { mood: CompanionMood }) {
     onLayout={event => setSize(Math.max(1, Math.min(event.nativeEvent.layout.width, event.nativeEvent.layout.height)))}>
     <View style={{ width: size, height: size, overflow: 'hidden' }}>
       <Image source={ORIGINAL} accessible={false} fadeDuration={0} resizeMode="contain"
-        style={[StyleSheet.absoluteFillObject, { opacity: showAtlas ? 0 : 1 }]} />
+        style={[StyleSheet.absoluteFillObject, { width: size, height: size, opacity: showAtlas ? 0 : 1 }]} />
       {ATLASES.map((source, sheet) => <Image key={sheet} source={source} accessible={false} fadeDuration={0}
         onLoad={() => setReady(previous => previous.map((value, index) => index === sheet ? true : value))}
         onError={() => setFailed(previous => previous.map((value, index) => index === sheet ? true : value))} resizeMode="stretch"
