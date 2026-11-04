@@ -7,13 +7,14 @@ export class ShareService {
   static async shareApp(): Promise<void> {
     const url = Platform.OS === 'ios' ? APP_CONFIG.storeUrl.ios : APP_CONFIG.storeUrl.android;
     await Share.share({
-      message: `${APP_CONFIG.name} — ${APP_CONFIG.tagline}\n꿈을 기록하고 AI로 해석해보세요.\n${url}`,
+      message: `${APP_CONFIG.name} — ${APP_CONFIG.tagline}\n꿈을 기록하고 기기 안에서 해석해보세요.\n${url || ''}`,
       title: APP_CONFIG.name,
     });
   }
 
   static async rateApp(): Promise<void> {
     const url = Platform.OS === 'ios' ? APP_CONFIG.storeUrl.ios : APP_CONFIG.storeUrl.android;
+    if (!url) { Alert.alert('앱 평가', '스토어 출시 후 평가할 수 있습니다.'); return; }
     const canOpen = await Linking.canOpenURL(url);
     if (canOpen) {
       await Linking.openURL(url);
@@ -45,8 +46,8 @@ export class ShareService {
     await Share.share({ message: text, title: '꿈 해석 공유' });
   }
 
-  static async contactSupport(subject = '드림로그 문의'): Promise<void> {
-    const url = `mailto:${APP_CONFIG.supportEmail}?subject=${encodeURIComponent(subject)}`;
+  static async contactSupport(subject = '드림로그 문의', body = ''): Promise<void> {
+    const url = `mailto:${APP_CONFIG.supportEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
     const canOpen = await Linking.canOpenURL(url);
     if (canOpen) {
       await Linking.openURL(url);
