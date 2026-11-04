@@ -47,6 +47,11 @@ function load(file) {
 }
 
 async function main() {
+  const appIcon = fs.readFileSync(root + '/assets/icon.png');
+  assert.equal(appIcon.readUInt32BE(16), 1024);
+  assert.equal(appIcon.readUInt32BE(20), 1024);
+  assert.equal(appIcon[25], 2, 'App Store icon must be opaque RGB, no alpha channel');
+  assert.ok(appIcon.equals(fs.readFileSync(root + '/ios/DreamInterpreterApp/Images.xcassets/AppIcon.appiconset/App-Icon-1024x1024@1x.png')), 'Expo and native iOS icon stay identical');
   const { getEmotionIconName, EMOTION_ICONS } = load(root + '/src/utils/emotionVisuals.ts');
   const emotionGlyphs = require(root + '/node_modules/@expo/vector-icons/build/vendor/react-native-vector-icons/glyphmaps/MaterialCommunityIcons.json');
   assert.equal(Object.keys(EMOTION_ICONS).length, 6);
