@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { calculateStreak } from '../utils/dreamHelpers';
+import { calculateStreak, localDateKey } from '../utils/dreamHelpers';
 import { DreamStorage } from './DreamStorage';
 
 const STREAK_KEY = 'dream_streak_meta';
@@ -16,7 +16,7 @@ export class StreakService {
     const dreams = await DreamStorage.getDreams();
     const dates = dreams.map((d) => d.date);
     const currentStreak = calculateStreak(dates);
-    const today = new Date().toISOString().split('T')[0];
+    const today = localDateKey();
     const todayLogged = dates.includes(today);
 
     let longestStreak = currentStreak;
