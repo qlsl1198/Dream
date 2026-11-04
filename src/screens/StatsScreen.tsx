@@ -6,7 +6,7 @@ import {
   StyleSheet,
   SafeAreaView,
   TouchableOpacity,
-  Dimensions,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
@@ -15,8 +15,9 @@ import { useTheme } from '../contexts/ThemeContext';
 import { DreamStorage, DreamRecord } from '../services/DreamStorage';
 import { StreakService, StreakInfo } from '../services/StreakService';
 import { getEmotionColor, getEmotionEmoji, getEmotionLabel, extractKeywords } from '../utils/dreamHelpers';
-
-const { width } = Dimensions.get('window');
+import DreamPageHeader from '../components/DreamPageHeader';
+import DreamJourneyBanner from '../components/DreamJourneyBanner';
+import { dreamLayout } from '../constants/DreamDesign';
 
 interface DreamStats {
   totalDreams: number;
@@ -27,18 +28,21 @@ interface DreamStats {
   lucidCount: number;
   nightmareCount: number;
 }
+const EMPTY_STATS: DreamStats = { totalDreams: 0, emotionStats: {}, averageConfidence: 0, mostCommonThemes: [], dreamFrequency: 0, lucidCount: 0, nightmareCount: 0 };
 
 export default function StatsScreen() {
   const { colors } = useTheme();
   const [dreams, setDreams] = useState<DreamRecord[]>([]);
-  const [stats, setStats] = useState<DreamStats | null>(null);
+  const [stats, setStats] = useState<DreamStats>(EMPTY_STATS);
   const [streak, setStreak] = useState<StreakInfo | null>(null);
   const [selectedPeriod, setSelectedPeriod] = useState<'week' | 'month' | 'year'>('month');
 
   const load = useCallback(async () => {
+    try {
     const savedDreams = await DreamStorage.getDreams();
     setDreams(savedDreams);
     setStreak(await StreakService.getStreakInfo());
+    } catch { Alert.alert('통계 읽기 실패', '저장된 기록을 읽지 못했습니다. 기존 데이터는 보존됩니다.'); }
   }, []);
 
   useFocusEffect(
@@ -49,7 +53,7 @@ export default function StatsScreen() {
 
   React.useEffect(() => {
     if (dreams.length === 0) {
-      setStats(null);
+      setStats(EMPTY_STATS);
       return;
     }
 
@@ -105,50 +109,30 @@ export default function StatsScreen() {
     });
   }, [dreams, selectedPeriod]);
 
-  if (!stats) {
-    return (
-      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-        <View style={styles.header}>
-          <Text style={[styles.headerTitle, { color: colors.text }]}>꿈 분석</Text>
-          <Text style={[styles.headerSubtitle, { color: colors.textSecondary }]}>
-            패턴을 발견해보세요
-          </Text>
-        </View>
-        <View style={styles.emptyContainer}>
-          <Ionicons name="analytics-outline" size={64} color={colors.textSecondary} />
-          <Text style={[styles.emptyTitle, { color: colors.text }]}>아직 꿈 기록이 없어요</Text>
-          <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
-            꿈을 기록하면 감정·상징·연속 기록 통계가 나타납니다
-          </Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
-
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-      <View style={styles.header}>
-        <Text style={[styles.headerTitle, { color: colors.text }]}>꿈 분석</Text>
-        <Text style={[styles.headerSubtitle, { color: colors.textSecondary }]}>
-          {selectedPeriod === 'week' ? '최근 1주일' : selectedPeriod === 'month' ? '최근 1개월' : '전체 기간'}
-        </Text>
-      </View>
+      <DreamPageHeader title="꿈의 여정" subtitle="기록 속에서 발견하는 작은 변화" />
 
+      <View style={dreamLayout.column}>
       <View style={[styles.periodSelector, { backgroundColor: colors.surface, borderColor: colors.border }]}>
         {(['week', 'month', 'year'] as const).map((period) => (
           <TouchableOpacity
             key={period}
-            style={[styles.periodButton, selectedPeriod === period && { backgroundColor: colors.primary }]}
+            style={[styles.periodButton, selectedPeriod === period && { backgroundColor: colors.accent }]}
             onPress={() => setSelectedPeriod(period)}
+            accessibilityRole="button"
+            accessibilityState={{ selected: selectedPeriod === period }}
           >
-            <Text style={{ color: selectedPeriod === period ? '#fff' : colors.text, fontWeight: '600', fontSize: 13 }}>
+            <Text style={{ color: selectedPeriod === period ? colors.onAccent : colors.text, fontWeight: '600', fontSize: 13 }}>
               {period === 'week' ? '1주' : period === 'month' ? '1개월' : '전체'}
             </Text>
           </TouchableOpacity>
         ))}
       </View>
+      </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={[dreamLayout.body, { paddingTop: 0 }]} showsVerticalScrollIndicator={false}>
+        <DreamJourneyBanner count={dreams.length} />
         {streak && (
           <View style={[styles.streakCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <View style={styles.streakItem}>
@@ -178,7 +162,7 @@ export default function StatsScreen() {
             <Text style={[styles.statValue, { color: colors.text }]}>
               {(stats.averageConfidence * 100).toFixed(0)}%
             </Text>
-            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>평균 신뢰도</Text>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>평균 참고 지수</Text>
           </View>
           <View style={[styles.statCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <Text style={[styles.statValue, { color: colors.text }]}>{stats.dreamFrequency.toFixed(1)}</Text>
@@ -188,6 +172,7 @@ export default function StatsScreen() {
 
         <View style={[styles.chartContainer, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <Text style={[styles.chartTitle, { color: colors.text }]}>감정 분포</Text>
+          {stats.totalDreams === 0 && <Text style={{ color: colors.textSecondary, lineHeight: 23 }}>이 기간에는 아직 기록이 없어요. 꿈을 남기면 감정의 흐름이 나타나요.</Text>}
           {Object.entries(stats.emotionStats).map(([emotion, count]) => {
             const total = Object.values(stats.emotionStats).reduce((s, c) => s + c, 0);
             const percentage = (count / total) * 100;
@@ -217,6 +202,7 @@ export default function StatsScreen() {
 
         <View style={[styles.chartContainer, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <Text style={[styles.chartTitle, { color: colors.text }]}>자주 나타나는 키워드·상징</Text>
+          {stats.mostCommonThemes.length === 0 && <Text style={{ color: colors.textSecondary, lineHeight: 23 }}>꿈에 등장한 단어와 상징을 이곳에 모아드려요.</Text>}
           {stats.mostCommonThemes.map((theme, index) => (
             <View key={theme.theme} style={styles.themeRow}>
               <View style={[styles.rankBadge, { backgroundColor: colors.primary }]}>
@@ -231,10 +217,10 @@ export default function StatsScreen() {
         <View style={[styles.insightCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <Text style={[styles.chartTitle, { color: colors.text }]}>인사이트</Text>
           <Text style={[styles.insightText, { color: colors.textSecondary }]}>
-            {stats.nightmareCount > stats.totalDreams * 0.3
+            {stats.totalDreams === 0 ? '떠오르는 장면 하나부터 가볍게 남겨보세요. 잠시 쉬어가도 괜찮아요.' : stats.nightmareCount > stats.totalDreams * 0.3
               ? '악몽 비중이 높아요. 수면 환경과 스트레스를 함께 점검해보세요.'
               : stats.lucidCount > 0
-              ? `자각몽 ${stats.lucidCount}회 기록! 의도적 자각 연습이 효과가 있는 것 같아요.`
+              ? `자각몽을 ${stats.lucidCount}회 기록했어요. 그때의 장면과 느낌을 다시 살펴보세요.`
               : streak && streak.currentStreak >= 3
               ? `${streak.currentStreak}일 연속 기록 중이에요. 이 리듬을 유지해보세요!`
               : '매일 짧게라도 기록하면 감정 패턴이 선명해집니다.'}
@@ -256,35 +242,36 @@ const styles = StyleSheet.create({
   headerSubtitle: { fontSize: 14 },
   periodSelector: {
     flexDirection: 'row',
-    marginHorizontal: 20,
+    marginHorizontal: 24,
     marginBottom: 16,
-    borderRadius: 12,
+    borderRadius: 16,
     borderWidth: 1,
     padding: 4,
   },
-  periodButton: { flex: 1, paddingVertical: 8, borderRadius: 8, alignItems: 'center' },
+  periodButton: { flex: 1, paddingVertical: 12, borderRadius: 12, alignItems: 'center' },
   content: { flex: 1, paddingHorizontal: 20 },
   streakCard: {
     flexDirection: 'row',
     borderWidth: 1,
-    borderRadius: 14,
+    borderRadius: 22,
     paddingVertical: 16,
     marginBottom: 14,
   },
   streakItem: { flex: 1, alignItems: 'center', gap: 4 },
   streakValue: { fontSize: 22, fontWeight: '800' },
-  statsGrid: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 14 },
+  statsGrid: { flexDirection: 'row', gap: 8, marginBottom: 20 },
   statCard: {
-    width: (width - 60) / 3,
-    padding: 14,
-    borderRadius: 12,
+    flex: 1,
+    paddingVertical: 20,
+    paddingHorizontal: 8,
+    borderRadius: 18,
     borderWidth: 1,
     alignItems: 'center',
   },
   statValue: { fontSize: 20, fontWeight: '800', marginBottom: 4 },
   statLabel: { fontSize: 11, textAlign: 'center' },
-  chartContainer: { padding: 16, borderRadius: 12, borderWidth: 1, marginBottom: 14 },
-  chartTitle: { fontSize: 16, fontWeight: '700', marginBottom: 14 },
+  chartContainer: { padding: 20, borderRadius: 22, borderWidth: 1, marginBottom: 20 },
+  chartTitle: { fontSize: 18, fontWeight: '700', marginBottom: 18 },
   emotionRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
   emotionInfo: { flexDirection: 'row', alignItems: 'center', width: 88 },
   emotionEmoji: { fontSize: 18, marginRight: 6 },
@@ -305,7 +292,7 @@ const styles = StyleSheet.create({
   rankText: { color: '#fff', fontSize: 12, fontWeight: '700' },
   themeText: { flex: 1, fontSize: 15, fontWeight: '500' },
   themeCount: { fontSize: 13 },
-  insightCard: { padding: 16, borderRadius: 12, borderWidth: 1, marginBottom: 8 },
+  insightCard: { padding: 20, borderRadius: 22, borderWidth: 1, marginBottom: 8 },
   insightText: { fontSize: 14, lineHeight: 22 },
   emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 40 },
   emptyTitle: { fontSize: 18, fontWeight: '700', marginTop: 16, marginBottom: 8 },
