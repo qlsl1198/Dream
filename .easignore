@@ -1,0 +1,33 @@
+node_modules/
+.git/
+.expo/
+.env
+.env.*
+!env.example
+dist/
+web-build/
+store-assets/
+*.log
+.DS_Store
+ios/Pods/
+ios/Pods 2/
+ios/build/
+ios/.xcode.env.local
+ios/DreamInterpreterApp 2.xcodeproj/
+ios/**/xcuserdata/
+ios/**/project.xcworkspace/
+android/.gradle/
+android/app/build/
+android/local.properties
+*.p8
+*.p12
+*.key
+*.pem
+*.mobileprovision
+*.keystore
+*.jks
+credentials.json
+credentials.*.json
+credentials/
+.npmrc
+.netrc
