@@ -14,7 +14,6 @@ export default function DreamCompanion({ count, busy, justSaved, emotion = '', f
   const touches = useRef(0);
   const [interaction, setInteraction] = useState<CompanionMood | null>(null);
   const [celebrating, setCelebrating] = useState(false);
-  const [blink, setBlink] = useState(false);
   const [reducedMotion, setReducedMotion] = useState(true);
   const [foreground, setForeground] = useState(AppState.currentState !== 'background' && AppState.currentState !== 'inactive');
   const [skyWidth, setSkyWidth] = useState(0);
@@ -68,16 +67,6 @@ export default function DreamCompanion({ count, busy, justSaved, emotion = '', f
     bounce.start();
     return () => bounce.stop();
   }, [animated, interaction, scale]);
-  useEffect(() => {
-    setBlink(false);
-    if (!animated || reaction.mood !== 'idle') return;
-    let closing: ReturnType<typeof setTimeout> | undefined;
-    const timer = setInterval(() => {
-      setBlink(true);
-      closing = setTimeout(() => setBlink(false), 180);
-    }, 4600);
-    return () => { clearInterval(timer); if (closing) clearTimeout(closing); };
-  }, [animated, reaction.mood]);
   const greet = () => {
     setInteraction(TOUCH_MOODS[touches.current++ % TOUCH_MOODS.length]);
     if (touchTimer.current) clearTimeout(touchTimer.current);
@@ -98,7 +87,7 @@ export default function DreamCompanion({ count, busy, justSaved, emotion = '', f
           <Animated.View style={{ transform: [{ translateY: ambient.interpolate({ inputRange: [0, 1], outputRange: [0, lift] }) },
             { rotate: ambient.interpolate({ inputRange: [0, 1], outputRange: [reaction.mood === 'thinking' ? '-3deg' : '-1deg', reaction.mood === 'thinking' ? '3deg' : '1deg'] }) },
             { scale: Animated.multiply(scale, ambient.interpolate({ inputRange: [0, 1], outputRange: [1, 1.025] })) }] }}>
-            <MongiSprite mood={reaction.mood} blink={blink} />
+            <MongiSprite mood={reaction.mood} />
           </Animated.View>
           <Animated.Text pointerEvents="none" accessible={false} style={[styles.sparkle, { opacity: pulse, transform: [{ translateY: pulse.interpolate({ inputRange: [0, 1], outputRange: [4, -8] }) }] }]}>✦</Animated.Text>
         </Pressable>

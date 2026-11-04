@@ -28,7 +28,7 @@ export function getCompanionReaction({ emotion = '', busy = false, celebrating =
 export function canAnimateCompanion(reducedMotion: boolean, focused: boolean, foreground: boolean) {
   return !reducedMotion && focused && foreground;
 }
-export function getCompanionFrame(mood: CompanionMood, blink = false) {
-  if (mood === 'idle') return blink ? COMPANION_FRAMES.calm : null;
+export function getCompanionFrame(mood: CompanionMood) {
+  if (mood === 'idle') return null;
   return COMPANION_FRAMES[mood];
 }
