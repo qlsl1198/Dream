@@ -3,7 +3,8 @@ import { NavigationContainer, DarkTheme, DefaultTheme } from '@react-navigation/
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
-import { Platform } from 'react-native';
+import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
+
 
 import { ThemeProvider, useTheme } from './src/contexts/ThemeContext';
 import { OnboardingService } from './src/services/OnboardingService';
@@ -15,13 +16,14 @@ import HistoryScreen from './src/screens/HistoryScreen';
 import SymbolDictionaryScreen from './src/screens/SymbolDictionaryScreen';
 import StatsScreen from './src/screens/StatsScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
-
 import AppErrorBoundary from './src/components/AppErrorBoundary';
 
 const Tab = createBottomTabNavigator();
 
 function MainApp() {
   const { theme, colors } = useTheme();
+  const insets = useSafeAreaInsets();
+  const tabBottom = Math.max(insets.bottom, 8);
 
   const navTheme = {
     ...(theme === 'dark' ? DarkTheme : DefaultTheme),
@@ -41,27 +43,29 @@ function MainApp() {
       <StatusBar style={theme === 'dark' ? 'light' : 'dark'} />
       <Tab.Navigator
         screenOptions={({ route }) => ({
-          tabBarIcon: ({ focused, color, size }) => {
+          tabBarIcon: ({ color, size }) => {
             const icons: Record<string, keyof typeof Ionicons.glyphMap> = {
-              Home: focused ? 'moon' : 'moon-outline',
-              History: focused ? 'journal' : 'journal-outline',
-              Symbols: focused ? 'book' : 'book-outline',
-              Stats: focused ? 'analytics' : 'analytics-outline',
-              Settings: focused ? 'settings' : 'settings-outline',
+              Home: 'moon-outline',
+              History: 'journal-outline',
+              Symbols: 'book-outline',
+              Stats: 'analytics-outline',
+              Settings: 'settings-outline',
             };
             return <Ionicons name={icons[route.name] || 'help-outline'} size={size} color={color} />;
           },
-          tabBarActiveTintColor: colors.primary,
+          tabBarActiveTintColor: colors.accent,
           tabBarInactiveTintColor: colors.textSecondary,
+          tabBarLabelPosition: 'below-icon',
           tabBarStyle: {
             backgroundColor: colors.surface,
             borderTopWidth: 1,
             borderTopColor: colors.border,
-            paddingBottom: Platform.OS === 'ios' ? 8 : 6,
-            paddingTop: 6,
-            height: Platform.OS === 'ios' ? 84 : 64,
+            paddingBottom: tabBottom,
+            paddingTop: 8,
+            height: 68 + tabBottom,
           },
-          tabBarLabelStyle: { fontSize: 11, fontWeight: '600' },
+          tabBarLabelStyle: { fontSize: 11, lineHeight: 16, fontWeight: '600', marginTop: 2 },
+          tabBarItemStyle: { borderRadius: 16, marginHorizontal: 3 },
           headerShown: false,
         })}
       >
@@ -98,9 +102,5 @@ function AppContent() {
 }
 
 export default function App() {
-  return (
-    <AppErrorBoundary><ThemeProvider>
-      <AppContent />
-    </ThemeProvider></AppErrorBoundary>
-  );
+  return <SafeAreaProvider><AppErrorBoundary><ThemeProvider><AppContent /></ThemeProvider></AppErrorBoundary></SafeAreaProvider>;
 }

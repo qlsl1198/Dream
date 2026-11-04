@@ -51,7 +51,7 @@
       "package": "com.qlsl1198.DreamInterpreterApp"
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/icon-32.png"
     },
     "plugins": [
       "expo-sqlite",

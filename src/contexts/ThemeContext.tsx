@@ -9,6 +9,7 @@ export interface ThemeColors {
   primary: string;
   secondary: string;
   accent: string;
+  onAccent: string;
   text: string;
   textSecondary: string;
   border: string;
@@ -27,11 +28,12 @@ interface ThemeContextType {
 }
 
 const lightColors: ThemeColors = {
-  background: '#F4F7FB',
+  background: '#F7F4EE',
   surface: '#FFFFFF',
   primary: '#1E3A5F',
   secondary: '#3D5A80',
-  accent: '#C4A35A',
+  accent: '#806024',
+  onAccent: '#FFFFFF',
   text: '#152238',
   textSecondary: '#5B6B7C',
   border: '#D8E0EA',
@@ -45,18 +47,19 @@ const lightColors: ThemeColors = {
 
 const darkColors: ThemeColors = {
   background: '#0B1426',
-  surface: '#162033',
-  primary: '#7BA3D4',
+  surface: '#15243A',
+  primary: '#45658C',
   secondary: '#9BB4D4',
-  accent: '#E8D5A3',
-  text: '#F2F5F9',
-  textSecondary: '#9AA8B8',
-  border: '#2A3A52',
+  accent: '#E8CE96',
+  onAccent: '#0B1426',
+  text: '#F7F1E5',
+  textSecondary: '#A7B5C9',
+  border: '#2B3B54',
   success: '#34D399',
   warning: '#FBBF24',
   error: '#F87171',
-  inputBackground: '#1C2A40',
-  inputBorder: '#2A3A52',
+  inputBackground: '#15243A',
+  inputBorder: '#2B3B54',
   shadow: 'rgba(0, 0, 0, 0.35)',
 };
 
