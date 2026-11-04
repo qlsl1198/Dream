@@ -12,6 +12,8 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../contexts/ThemeContext';
 import { LocalAIService } from '../services/LocalAIService';
+import { MemoryStorage, MemoryRecord } from '../services/MemoryStorage';
+import { formatRelativeDate, localDateKey } from '../utils/dreamHelpers';
 
 const FALLBACK_QUESTIONS = [
   '그때 누구와 함께 있었나요?',
@@ -21,17 +23,17 @@ const FALLBACK_QUESTIONS = [
   '그때 어떤 기분이었나요?',
 ];
 
-// 로컬 AI 기반 기억 복원 엔진 (Ollama / LM Studio)
+// On-device reflection helper. Generated summaries are not recovered facts.
 class AIMemoryRecovery {
   async generateQuestions(description: string): Promise<string[]> {
-    if (!this.openai) return FALLBACK_QUESTIONS;
-
+    try {
+      const prompt = `다음 기억을 더 선명하게 떠올리는 데 도움이 되는, 암시하거나 유도하지 않는 질문 5개를 한국어로 작성해주세요. 질문만 한 줄에 하나씩 적어주세요.\n\n상황: ${description.slice(0, 1500)}`;
       const response = await LocalAIService.chatCompletion(
         [
           {
             role: 'system',
             content:
-              '당신은 기억 복원 전문가입니다. 사람들이 잊어버린 기억을 되찾을 수 있도록 도와주는 구체적이고 유용한 질문을 만듭니다.',
+              '당신은 회상 일기 도우미입니다. 사실을 만들어내지 말고 사용자가 확실히 기억하는 부분만 묻는 중립적인 질문을 만드세요. 기억이 정확하다고 보증하지 마세요.',
           },
           {
             role: 'user',
@@ -47,7 +49,7 @@ class AIMemoryRecovery {
 
       return response.split('\n').filter(line => line.trim()).slice(0, 5);
     } catch (error) {
-      console.error('로컬 AI 질문 생성 오류:', error);
+      if (__DEV__) console.warn('로컬 AI 질문 생성 오류:', error);
       return this.getFallbackQuestions();
     }
   }
@@ -75,7 +77,7 @@ ${clues.map((clue, index) => `${index + 1}. ${clue}`).join('\n')}
           {
             role: 'system',
             content:
-              '당신은 기억 복원 전문가입니다. 단편적인 기억들을 연결하여 완전한 기억으로 재구성하고, 그 의미를 분석합니다.',
+              '당신은 회상 일기 도우미입니다. 사용자가 제공한 단서만 요약하세요. 빈 부분을 상상으로 채우거나 사실이라고 확정하지 마세요. 확인된 기억과 불확실한 점을 분리하고, 답변은 기억 분석: 및 복원된 기억: 형식을 사용하되 복원된 기억은 단서 요약으로만 작성하세요.',
           },
           {
             role: 'user',
@@ -110,7 +112,7 @@ ${clues.map((clue, index) => `${index + 1}. ${clue}`).join('\n')}
     return {
       analysis:
         '로컬 AI 분석 중 오류가 발생했습니다. 수집된 단서들을 바탕으로 스스로 기억을 연결해보세요.',
-      recoveredMemory: '기억 복원을 위해 더 많은 단서가 필요할 수 있습니다.',
+      recoveredMemory: '회상 일기을 위해 더 많은 단서가 필요할 수 있습니다.',
     };
   }
 
@@ -132,7 +134,7 @@ ${clues.map((clue, index) => `${index + 1}. ${clue}`).join('\n')}
     if (!analysis && !recoveredMemory) {
       const parts = response.split('\n\n');
       analysis = parts[0] || response;
-      recoveredMemory = parts[1] || '기억 복원이 완료되었습니다.';
+      recoveredMemory = parts[1] || '회상 일기이 완료되었습니다.';
     }
 
     return { analysis, recoveredMemory };
@@ -151,13 +153,15 @@ export default function MemoryScreen() {
   const [memories, setMemories] = useState<MemoryRecord[]>([]);
   const [isRecovering, setIsRecovering] = useState(false);
   const [isGeneratingQuestions, setIsGeneratingQuestions] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     loadMemories();
   }, []);
 
   const loadMemories = async () => {
-    setMemories(await MemoryStorage.getMemories());
+    try { setMemories(await MemoryStorage.getMemories()); }
+    catch { Alert.alert('기록 읽기 실패', '기록을 불러오지 못했습니다. 기존 데이터는 보존됩니다.'); }
   };
 
   const handleStartRecovery = async () => {
@@ -179,6 +183,7 @@ export default function MemoryScreen() {
   };
 
   const handleAnswerQuestion = () => {
+    if (isSaving) return;
     if (!currentAnswer.trim()) {
       Alert.alert('알림', '답변을 입력해주세요.');
       return;
@@ -196,6 +201,7 @@ export default function MemoryScreen() {
   };
 
   const completeMemoryRecovery = async (finalAnswers: string[]) => {
+    setIsSaving(true);
     try {
       const aiResult = await memoryRecovery.analyzeMemory(description, finalAnswers);
       const newMemory: MemoryRecord = {
@@ -204,7 +210,7 @@ export default function MemoryScreen() {
         clues: finalAnswers,
         questions: currentQuestions,
         status: 'completed',
-        date: new Date().toISOString().split('T')[0],
+        date: localDateKey(),
         createdAt: new Date().toISOString(),
         aiAnalysis: aiResult.analysis,
         recoveredMemory: aiResult.recoveredMemory,
@@ -213,7 +219,7 @@ export default function MemoryScreen() {
       await MemoryStorage.saveMemory(newMemory);
       await loadMemories();
 
-      Alert.alert('기억 복원 완료', '기록이 저장되었습니다.');
+      Alert.alert('회상 기록 완료', '기록이 저장되었습니다.');
       setDescription('');
       setCurrentQuestions([]);
       setCurrentQuestionIndex(0);
@@ -221,13 +227,13 @@ export default function MemoryScreen() {
       setCurrentAnswer('');
       setIsRecovering(false);
     } catch {
-      Alert.alert('오류', '기억 복원 저장 중 오류가 발생했습니다.');
+      Alert.alert('오류', '회상 일기 저장 중 오류가 발생했습니다.');
       setIsRecovering(false);
-    }
+    } finally { setIsSaving(false); }
   };
 
   const handleDeleteMemory = (id: string) => {
-    Alert.alert('삭제', '이 기억 복원 기록을 삭제할까요?', [
+    Alert.alert('삭제', '이 회상 일기 기록을 삭제할까요?', [
       { text: '취소', style: 'cancel' },
       {
         text: '삭제',
@@ -244,9 +250,9 @@ export default function MemoryScreen() {
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <ScrollView showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
-          <Text style={[styles.headerTitle, { color: colors.text }]}>기억 복원</Text>
+          <Text style={[styles.headerTitle, { color: colors.text }]}>회상 일기</Text>
           <Text style={[styles.headerSubtitle, { color: colors.textSecondary }]}>
-            질문을 따라가며 흐릿한 장면을 되살려보세요
+            확실히 기억하는 부분만 남겨보세요. AI 요약은 사실을 보증하지 않습니다.
           </Text>
         </View>
 
@@ -267,6 +273,7 @@ export default function MemoryScreen() {
                 placeholderTextColor={colors.textSecondary}
                 value={description}
                 onChangeText={setDescription}
+                maxLength={2000}
                 multiline
                 textAlignVertical="top"
               />
@@ -277,13 +284,13 @@ export default function MemoryScreen() {
               >
                 <Ionicons name="search" size={20} color="#fff" />
                 <Text style={styles.startButtonText}>
-                  {isGeneratingQuestions ? '질문 생성 중...' : '기억 복원 시작'}
+                  {isGeneratingQuestions ? '질문 생성 중...' : '회상 일기 시작'}
                 </Text>
               </TouchableOpacity>
             </View>
           ) : (
             <View style={[styles.recoveryContainer, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-              <Text style={[styles.recoveryTitle, { color: colors.text }]}>기억 복원 중</Text>
+              <Text style={[styles.recoveryTitle, { color: colors.text }]}>회상 일기 중</Text>
               <Text style={{ color: colors.textSecondary, marginBottom: 16 }}>
                 {currentQuestionIndex + 1} / {currentQuestions.length}
               </Text>
@@ -311,8 +318,9 @@ export default function MemoryScreen() {
               <TouchableOpacity
                 style={[styles.submitButton, { backgroundColor: colors.success }]}
                 onPress={handleAnswerQuestion}
+                disabled={isSaving}
               >
-                <Text style={styles.submitButtonText}>답변 완료</Text>
+                <Text style={styles.submitButtonText}>{isSaving ? '기기 내 정리 중…' : '답변 완료'}</Text>
               </TouchableOpacity>
             </View>
           )}
