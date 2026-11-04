@@ -14,6 +14,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../contexts/ThemeContext';
 import { FeedbackService } from '../services/FeedbackService';
+import { ShareService } from '../services/ShareService';
 
 interface FeedbackModalProps {
   visible: boolean;
@@ -43,9 +44,10 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ visible, onClose }) => {
       });
 
       Alert.alert(
-        '피드백 전송 완료',
-        '소중한 의견 감사합니다. 검토 후 반영하겠습니다.',
+        '피드백 저장 완료',
+        '기기에 저장했습니다. 이메일 작성을 선택하면 이메일 앱이 열립니다. 직접 보내기를 눌러야 개발자에게 전달됩니다.',
         [
+          { text: '이메일 작성', onPress: () => ShareService.contactSupport('드림로그 피드백', feedback.trim()) },
           {
             text: '확인',
             onPress: () => {
@@ -57,7 +59,7 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ visible, onClose }) => {
       );
     } catch (error) {
       console.error('피드백 저장 오류:', error);
-      Alert.alert('오류', '피드백 전송 중 오류가 발생했습니다.');
+      Alert.alert('오류', '피드백 저장 중 오류가 발생했습니다.');
     } finally {
       setIsSubmitting(false);
     }
@@ -111,7 +113,7 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ visible, onClose }) => {
               소중한 의견을 들려주세요
             </Text>
             <Text style={[styles.introText, { color: colors.textSecondary }]}>
-              앱 개선을 위한 아이디어, 버그 신고, 새로운 기능 제안 등 무엇이든 환영합니다.
+              의견을 기기에 저장하고 이메일 앱에서 직접 개발자에게 보낼 수 있습니다.
             </Text>
           </View>
 
