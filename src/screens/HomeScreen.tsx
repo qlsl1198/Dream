@@ -9,6 +9,7 @@ import {
   Alert,
   SafeAreaView,
   Animated,
+  useWindowDimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useIsFocused } from '@react-navigation/native';
@@ -29,6 +30,7 @@ import { localDateKey } from '../utils/dreamHelpers';
 export default function HomeScreen() {
   const { colors } = useTheme();
   const focused = useIsFocused();
+  const compactHeader = useWindowDimensions().width < 360;
   const [dreamContent, setDreamContent] = useState('');
   const [emotion, setEmotion] = useState('');
   const [dreamType, setDreamType] = useState<DreamTypeKey>('normal');
@@ -207,8 +209,8 @@ export default function HomeScreen() {
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
         <Animated.View style={[dreamLayout.body, { opacity: fadeAnim }]}>
-          <View style={styles.topHeader}>
-            <View style={{ flex: 1 }}>
+          <View style={[styles.topHeader, compactHeader && styles.compactHeader]}>
+            <View style={compactHeader ? { width: '100%' } : { flex: 1 }}>
               <Text style={[styles.brand, { color: colors.accent }]}>{APP_CONFIG.name}</Text>
               <Text style={[styles.heading, { color: colors.text }]}>오늘의 꿈을 남겨보세요</Text>
             </View>
@@ -430,6 +432,7 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   scrollContent: { paddingBottom: 28 },
   topHeader: { flexDirection: 'row', gap: 12, justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 },
+  compactHeader: { flexDirection: 'column', gap: 8 },
   brand: { fontSize: 13, fontWeight: '700', letterSpacing: 1.5, marginBottom: 4 },
   heading: { fontSize: 24, lineHeight: 32, fontWeight: '700', letterSpacing: -0.5 },
   streakBadge: {
