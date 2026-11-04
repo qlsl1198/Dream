@@ -1,173 +1,32 @@
-# 드림로그 (DreamLog)
+# 드림로그 — iOS
+꿈 일기, 상징 사전, 감정 통계, 온디바이스 해석 앱입니다.
 
-AI 꿈 일기 · 해몽 · 한국형 상징 사전 모바일 앱
+## AI
+iOS 26 이상의 Apple Intelligence 지원 기기에서 시스템 모델이 준비되면 Apple Foundation Models의 온디바이스 모델을 사용합니다. 별도 서버·API 키·PC가 필요하지 않습니다. 미지원 기기, 모델 준비 전, 생성 실패 시 규칙 기반 해석으로 자동 전환합니다. Expo Go에는 커스텀 네이티브 브리지가 없으므로 AI 검증은 네이티브 빌드와 실기기에서 해야 합니다.
 
-## 주요 기능
-
-### 🔮 꿈 해석
-- **로컬 AI 해석**: Ollama / LM Studio 등 로컬 LLM을 활용한 꿈 해석
-- **오프라인 폴백**: 로컬 AI에 연결할 수 없을 때 기본 해석 엔진으로 동작
-- **다양한 꿈 테마**: 20가지 이상의 꿈 테마별 맞춤 해석
-- **해석 기록 저장**: 모든 꿈 해석 결과를 로컬에 안전하게 저장
-
-### 🧠 기억 복원
-- **로컬 AI 질문**: 망각된 기억을 되살리는 맞춤형 질문 생성
-- **단계별 복원**: 체계적인 질문을 통한 점진적 기억 복원
-- **감정 분석**: 기억과 관련된 감정 상태 분석
-
-React Native (Expo 53), TypeScript, AsyncStorage, Expo Notifications, Google Mobile Ads, OpenAI API
-
-### ⚙️ 설정 및 관리
-- **다크/라이트 모드**: 사용자 상황에 따른 테마 전환
-- **알림 설정**: 꿈 기록 알림 및 리마인더 설정
-- **데이터 백업**: 꿈 기록 내보내기/가져오기 기능
-- **피드백 시스템**: 개발자에게 개선사항 제안
-
-### 💰 후원 기능
-- **토스/카카오페이**: QR 코드를 통한 간편 후원
-- **개발자 지원**: 앱 개발 및 유지보수 지원
-
-## 🛠 기술 스택
-
-- **Frontend**: React Native, TypeScript
-- **AI Integration**: 로컬 LLM (Ollama / LM Studio, OpenAI 호환 API)
-- **State Management**: React Context API
-- **Local Storage**: AsyncStorage
-- **Navigation**: React Navigation
-- **Notifications**: Expo Notifications
-- **Build System**: Expo (EAS Build)
-- **Advertising**: Google AdMob
-
-## 🚀 설치 및 실행
-
-### 필수 요구사항
-- Node.js 18+
-- npm 또는 yarn
-- Expo CLI
-- 로컬 AI 서버 (Ollama 또는 LM Studio 권장)
-- iOS Simulator (iOS 개발용)
-- Android Studio (Android 개발용)
-
-### 로컬 AI 준비 (Ollama 예시)
-
-```bash
-# Ollama 설치 후 모델 다운로드
-ollama pull llama3.2
-
-# 서버가 http://localhost:11434 에서 실행 중인지 확인
-ollama serve
+## 개발
+Node 22, Xcode 26 이상과 CocoaPods가 필요합니다.
+```sh
+npm ci
+cd ios
+pod install
+cd ..
+npm run verify
+npx expo run:ios
 ```
 
-### 설치 방법
+이 저장소는 ios/ 네이티브 프로젝트를 직접 관리합니다. app.json만 수정하면 네이티브 설정에 자동 반영되지 않습니다. 특히 DreamOnDeviceAI.swift/.m의 Xcode 타깃 소스 등록을 유지해야 합니다. prebuild --clean은 사용자 정의 브리지를 지울 수 있으므로 사용하지 않습니다. Expo Doctor의 CNG 설정 동기화 경고는 이 방식 때문에 비활성화되어 있습니다.
 
-1. **저장소 클론**
-```bash
-git clone https://github.com/qlsl1198/Dream.git
-cd Dream
+## 데이터
+AsyncStorage에 기록하며 동시 저장은 직렬화합니다. 읽기 실패 시 기존 데이터를 덮어쓰지 않습니다. JSON 백업에는 꿈·회상 기록이 포함되며 가져오기는 같은 ID의 현재 기록을 우선해 병합합니다. HTML 내보내기는 읽기용입니다. 파일은 공유 후 앱 임시 저장소에서 제거합니다. 이용자가 내보낸 사본은 이용자가 관리해야 합니다.
+
+광고·추적 SDK와 외부 AI 호출은 출시 의존성에서 제거했습니다. iOS Pods는 반드시 다시 설치해 반영해야 합니다.
+
+## 출시
+```sh
+npm run build:ios
+npm run submit:ios
 ```
+실제 제출에는 EAS 로그인, 배포 인증서와 App Store Connect 앱이 필요합니다. 숫자 앱 ID를 발급받으면 EXPO_PUBLIC_IOS_STORE_URL에 실제 스토어 URL을 지정합니다.
 
-2. **의존성 설치**
-```bash
-npm install
-cp env.example .env
-
-# .env 파일에서 로컬 AI 설정 확인/수정
-EXPO_PUBLIC_LOCAL_AI_BASE_URL=http://localhost:11434/v1
-EXPO_PUBLIC_LOCAL_AI_MODEL=llama3.2
-EXPO_PUBLIC_LOCAL_AI_API_KEY=local-ai
-EXPO_PUBLIC_ADMOB_UNIT_ID=your_admob_unit_id_here
-```
-
-**플랫폼별 base URL 참고**
-
-| 환경 | URL |
-|------|-----|
-| iOS 시뮬레이터 / 웹 | `http://localhost:11434/v1` |
-| Android 에뮬레이터 | `http://10.0.2.2:11434/v1` (기본값으로 자동 적용) |
-| 실기기 | PC의 LAN IP, 예: `http://192.168.0.10:11434/v1` |
-| LM Studio | `http://localhost:1234/v1` (포트는 앱 설정 확인) |
-
-`EXPO_PUBLIC_LOCAL_AI_BASE_URL`을 비워 두면 iOS/웹은 localhost, Android 에뮬레이터는 `10.0.2.2`로 자동 설정됩니다.
-
-4. **개발 서버 실행**
-```bash
-# 웹에서 실행
-npx expo start --web
-
-# iOS 시뮬레이터에서 실행
-npx expo start --ios
-
-# Android 에뮬레이터에서 실행
-npx expo start --android
-```
-
-## 스토어 빌드
-
-```bash
-npx eas build --platform ios --profile production
-npx eas build --platform android --profile production
-npx eas submit --platform ios --profile production
-```
-
-## 🔧 프로젝트 구조
-
-```
-src/
-├── components/          # 재사용 가능한 컴포넌트
-│   ├── AdFitBanner.tsx  # 광고 배너 컴포넌트
-│   ├── DonationModal.tsx # 후원 모달
-│   └── FeedbackModal.tsx # 피드백 모달
-├── contexts/            # React Context
-│   └── ThemeContext.tsx # 테마 관리
-├── screens/             # 화면 컴포넌트
-│   ├── HomeScreen.tsx   # 메인 화면 (꿈 해석)
-│   ├── MemoryScreen.tsx # 기억 복원 화면
-│   ├── HistoryScreen.tsx # 꿈 기록 화면
-│   ├── StatsScreen.tsx  # 통계 화면
-│   ├── SettingsScreen.tsx # 설정 화면
-│   └── SplashScreen.tsx # 스플래시 화면
-└── services/            # 비즈니스 로직
-    ├── LocalAIService.ts # 로컬 AI (Ollama/LM Studio) 클라이언트
-    ├── DreamStorage.ts  # 꿈 데이터 저장
-    ├── NetworkService.ts # 네트워크 상태 관리
-    ├── NotificationService.ts # 알림 관리
-    ├── BackupService.ts # 데이터 백업
-    └── FeedbackService.ts # 피드백 관리
-```
-
-## 🔐 보안 및 개인정보
-
-- **로컬 저장**: 모든 꿈 기록은 디바이스에 로컬로 저장
-- **로컬 AI**: 꿈/기억 텍스트는 클라우드 API가 아닌 로컬 LLM으로 처리
-- **개인정보 보호**: 외부 OpenAI 등으로 데이터가 전송되지 않음
-- **폴백 해석**: 로컬 AI 서버가 없어도 기본 규칙 엔진으로 동작
-
-## 🤝 기여하기
-
-1. Fork the Project
-2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the Branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
-
-## 📄 라이선스
-
-이 프로젝트는 MIT 라이선스 하에 배포됩니다. 자세한 내용은 `LICENSE` 파일을 참조하세요.
-
-## 📞 문의 및 지원
-
-- **이슈 리포트**: [GitHub Issues](https://github.com/qlsl1198/Dream/issues)
-- **피드백**: 앱 내 피드백 기능 사용
-- **후원**: 앱 내 후원 기능을 통한 개발 지원
-
-- [PRIVACY.md](./PRIVACY.md)
-- [TERMS.md](./TERMS.md)
-
-- Ollama / LM Studio 로컬 AI 생태계
-- Expo 개발팀
-- React Native 커뮤니티
-- 모든 사용자들의 피드백과 지원
-
-## 버전
-
-1.1.0 — 앱스토어 출시 대비 고도화 (온보딩, 상징 사전, 일기 확장, 법적 고지, UX/버그픽스)
+검증되지 않은 Archive를 출시 완료로 취급하지 않습니다. 현재 검증·남은 작업은 [STORE_CHECKLIST.md](STORE_CHECKLIST.md), 심사 설명은 [스토어 자료](docs/APP_STORE_METADATA.ko.md)에 있습니다.
