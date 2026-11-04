@@ -16,30 +16,20 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.qlsl1198.DreamInterpreterApp",
       "infoPlist": {
-        "NSAppTransportSecurity": {
-          "NSAllowsLocalNetworking": true
-        }
-      },
-      "config": {
-        "googleMobileAdsAppId": "ca-app-pub-7625170441500776~9406449557"
+        "ITSAppUsesNonExemptEncryption": false
       },
       "privacyManifests": {
         "NSPrivacyAccessedAPITypes": [
           {
             "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryUserDefaults",
-            "NSPrivacyAccessedAPITypeReasons": ["CA92.1"]
+            "NSPrivacyAccessedAPITypeReasons": [
+              "CA92.1"
+            ]
           }
         ],
-        "NSPrivacyTracking": true,
+        "NSPrivacyTracking": false,
         "NSPrivacyTrackingDomains": [],
-        "NSPrivacyCollectedDataTypes": [
-          {
-            "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypeProductInteraction",
-            "NSPrivacyCollectedDataTypeLinked": false,
-            "NSPrivacyCollectedDataTypeTracking": false,
-            "NSPrivacyCollectedDataTypePurposes": ["NSPrivacyCollectedDataTypePurposeAppFunctionality"]
-          }
-        ]
+        "NSPrivacyCollectedDataTypes": []
       }
     },
     "android": {
@@ -48,11 +38,7 @@
         "backgroundColor": "#0B1426"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.qlsl1198.DreamInterpreterApp",
-      "usesCleartextTraffic": true,
-      "config": {
-        "googleMobileAdsAppId": "ca-app-pub-7625170441500776~9406449557"
-      }
+      "package": "com.qlsl1198.DreamInterpreterApp"
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -67,13 +53,6 @@
           "icon": "./assets/icon.png",
           "color": "#1E3A5F",
           "sounds": []
-        }
-      ],
-      [
-        "react-native-google-mobile-ads",
-        {
-          "androidAppId": "ca-app-pub-7625170441500776~9406449557",
-          "iosAppId": "ca-app-pub-7625170441500776~9406449557"
         }
       ]
     ],

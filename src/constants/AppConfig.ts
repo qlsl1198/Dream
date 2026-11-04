@@ -5,10 +5,10 @@ export const APP_CONFIG = {
   version: '1.1.0',
   buildNumber: '2',
   supportEmail: 'qlsl1198@gmail.com',
-  privacyUrl: 'https://qlsl1198.github.io/Dream/privacy',
-  termsUrl: 'https://qlsl1198.github.io/Dream/terms',
+  privacyUrl: 'https://qlsl1198.github.io/Dream/privacy.html',
+  termsUrl: 'https://qlsl1198.github.io/Dream/terms.html',
   storeUrl: {
-    ios: 'https://apps.apple.com/app/id0000000000',
+    ios: process.env.EXPO_PUBLIC_IOS_STORE_URL || '',
     android: 'https://play.google.com/store/apps/details?id=com.qlsl1198.DreamInterpreterApp',
   },
   maxDreamLength: 5000,
