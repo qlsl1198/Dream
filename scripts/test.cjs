@@ -47,6 +47,28 @@ function load(file) {
 }
 
 async function main() {
+  const { createDialoguePlayer, dialogueDelay } = load(root + '/src/utils/dialoguePlayer.ts');
+  const pending = new Map(); let timerId = 0; let completions = 0; const typed = [];
+  const schedule = callback => { const id = ++timerId; pending.set(id, callback); return id; };
+  const cancel = id => pending.delete(id);
+  const tick = () => { const [id, callback] = pending.entries().next().value; pending.delete(id); callback(); };
+  const player = createDialoguePlayer('몽이🌙!', value => typed.push(value), () => completions++, schedule, cancel);
+  player.start(); player.start(); assert.equal(pending.size, 1);
+  tick(); assert.equal(typed.at(-1), '몽');
+  tick(); assert.equal(typed.at(-1), '몽이');
+  tick(); assert.equal(typed.at(-1), '몽이🌙', 'surrogate pair stays intact');
+  assert.equal(player.reveal(), true); assert.equal(typed.at(-1), '몽이🌙!');
+  assert.equal(completions, 1); assert.equal(pending.size, 0);
+  assert.equal(player.reveal(), false); assert.equal(completions, 1);
+  player.start(); assert.equal(pending.size, 0);
+  const stopped = createDialoguePlayer('중단', () => {}, () => {}, schedule, cancel);
+  stopped.start(); stopped.stop(); assert.equal(pending.size, 0);
+  const natural = createDialoguePlayer('안녕', value => typed.push(value), () => completions++, schedule, cancel);
+  natural.start(); tick(); tick(); assert.equal(completions, 2); assert.equal(pending.size, 0);
+  const empty = createDialoguePlayer('', () => {}, () => completions++, schedule, cancel);
+  empty.start(); empty.start(); assert.equal(completions, 3);
+  assert.ok(dialogueDelay('.') > dialogueDelay('몽'));
+  assert.ok(dialogueDelay(',') > dialogueDelay('몽'));
   const { OnboardingService } = load(root + '/src/services/OnboardingService.ts');
   assert.equal(await OnboardingService.hasCompletedOnboarding(), false);
   values.set('has_completed_onboarding', 'true');

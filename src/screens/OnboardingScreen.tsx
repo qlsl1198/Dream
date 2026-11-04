@@ -5,6 +5,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { OnboardingService } from '../services/OnboardingService';
 import MongiSprite from '../components/MongiSprite';
+import MongiDialogue, { MongiDialogueHandle } from '../components/MongiDialogue';
 import { MONGI_TUTORIAL } from '../data/mongiTutorial';
 import LegalScreen from './LegalScreen';
 
@@ -12,11 +13,14 @@ export default function OnboardingScreen({ onDone, replay = false }: { onDone: (
   const [index, setIndex] = useState(0);
   const [legalOpen, setLegalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [typing, setTyping] = useState(true);
+  const dialogue = useRef<MongiDialogueHandle>(null);
   const finishing = useRef(false);
   const scroll = useRef<ScrollView>(null);
   const step = MONGI_TUTORIAL[index];
   const last = index === MONGI_TUTORIAL.length - 1;
   const move = (next: number) => {
+    setTyping(true);
     setIndex(Math.max(0, Math.min(MONGI_TUTORIAL.length - 1, next)));
     scroll.current?.scrollTo({ y: 0, animated: false });
   };
@@ -41,11 +45,7 @@ export default function OnboardingScreen({ onDone, replay = false }: { onDone: (
       <ScrollView ref={scroll} contentContainerStyle={styles.content}>
         <View style={styles.page}>
           <View style={styles.moon}><MongiSprite mood={step.mood} /></View>
-          <Text style={styles.name}>꿈 친구, 몽이</Text>
-          <View style={styles.bubble} accessibilityLiveRegion="polite" key={step.id}>
-            <Text style={styles.title} accessibilityRole="header">{step.title}</Text>
-            <Text style={styles.speech}>{step.speech}</Text>
-          </View>
+          <MongiDialogue key={step.id} ref={dialogue} title={step.title} text={step.speech} active={!legalOpen} onTypingChange={setTyping} />
           <View style={styles.tip}>
             <Ionicons name={step.icon} size={23} color="#E8D5A3" accessible={false} />
             <View style={styles.tipCopy}>
@@ -62,8 +62,11 @@ export default function OnboardingScreen({ onDone, replay = false }: { onDone: (
           <Text style={styles.counter}>{index + 1} / {MONGI_TUTORIAL.length}</Text>
           <View style={styles.actions}>
             {index > 0 ? <TouchableOpacity accessibilityRole="button" disabled={saving} style={styles.back} onPress={() => move(index - 1)}><Text style={styles.backText}>이전</Text></TouchableOpacity> : null}
-            <TouchableOpacity accessibilityRole="button" disabled={saving} style={styles.cta} onPress={() => last ? finish() : move(index + 1)}>
-              <Text style={styles.ctaText}>{saving ? '준비 중…' : last ? (replay ? '안내 마치기' : '몽이와 시작하기') : '다음 이야기'}</Text>
+            <TouchableOpacity accessibilityRole="button" disabled={saving} style={styles.cta} onPress={() => {
+              if (dialogue.current?.reveal()) return;
+              if (last) finish(); else move(index + 1);
+            }}>
+              <Text style={styles.ctaText}>{saving ? '준비 중…' : typing ? '바로 읽기' : last ? (replay ? '안내 마치기' : '몽이와 시작하기') : '다음 이야기'}</Text>
               <Ionicons name={last ? 'sparkles' : 'arrow-forward'} size={18} color="#172138" accessible={false} />
             </TouchableOpacity>
           </View>
@@ -83,10 +86,6 @@ const styles = StyleSheet.create({
   page: { width: '100%', maxWidth: 520, alignSelf: 'center', alignItems: 'center' },
   footer: { width: '100%', maxWidth: 568, alignSelf: 'center', alignItems: 'center', paddingHorizontal: 24, paddingBottom: 8 },
   moon: { width: 180, borderRadius: 90, backgroundColor: 'rgba(232,213,163,0.08)', paddingVertical: 12 },
-  name: { color: '#E8D5A3', fontSize: 13, marginTop: 12, marginBottom: 16, fontWeight: '600' },
-  bubble: { width: '100%', borderRadius: 26, backgroundColor: '#F7F3EA', padding: 24, borderBottomLeftRadius: 8 },
-  title: { color: '#25314B', fontSize: 24, lineHeight: 34, fontWeight: '800', marginBottom: 12 },
-  speech: { color: '#46516A', fontSize: 16, lineHeight: 26 },
   tip: { flexDirection: 'row', gap: 12, paddingVertical: 22, alignItems: 'flex-start', width: '100%' },
   tipCopy: { flex: 1 }, tipTitle: { color: '#F7F3EA', fontSize: 14, fontWeight: '700', marginBottom: 6 },
   detail: { color: '#CDD4E1', fontSize: 13, lineHeight: 21 },
