@@ -22,6 +22,7 @@ import { ShareService } from '../services/ShareService';
 import { APP_CONFIG } from '../constants/AppConfig';
 import FeedbackModal from '../components/FeedbackModal';
 import LegalScreen from './LegalScreen';
+import OnboardingScreen from './OnboardingScreen';
 import MemoryScreen from './MemoryScreen';
 import DreamPageHeader from '../components/DreamPageHeader';
 import { dreamLayout } from '../constants/DreamDesign';
@@ -61,6 +62,7 @@ export default function SettingsScreen() {
   const [feedbackModalVisible, setFeedbackModalVisible] = useState(false);
   const [legalType, setLegalType] = useState<'privacy' | 'terms' | null>(null);
   const [memoryVisible, setMemoryVisible] = useState(false);
+  const [tutorialVisible, setTutorialVisible] = useState(false);
 
   React.useEffect(() => {
     loadNotificationSettings();
@@ -325,6 +327,7 @@ export default function SettingsScreen() {
 
         <Text style={[styles.sectionTitle, { color: colors.text }]}>지원</Text>
         <View style={[styles.group, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        <Row icon="moon-outline" label="몽이 사용 안내" description="몽이와 함께 앱 기능 다시 살펴보기" onPress={() => setTutorialVisible(true)} />
         <Row icon="chatbubble-outline" label="개발자에게 건의" onPress={() => setFeedbackModalVisible(true)} />
         {APP_CONFIG.storeUrl.ios ? <Row icon="star-outline" label="앱 평가하기" onPress={() => ShareService.rateApp()} /> : null}
         <Row icon="share-outline" label="앱 공유하기" onPress={() => ShareService.shareApp()} />
@@ -354,6 +357,9 @@ export default function SettingsScreen() {
       </ScrollView>
 
       <FeedbackModal visible={feedbackModalVisible} onClose={() => setFeedbackModalVisible(false)} />
+      <Modal visible={tutorialVisible} animationType="slide" onRequestClose={() => setTutorialVisible(false)}>
+        {tutorialVisible ? <OnboardingScreen replay onDone={() => setTutorialVisible(false)} /> : null}
+      </Modal>
 
       <Modal visible={!!legalType} animationType="slide" presentationStyle="pageSheet">
         {legalType && <LegalScreen type={legalType} onClose={() => setLegalType(null)} />}
