@@ -16,6 +16,8 @@ import SymbolDictionaryScreen from './src/screens/SymbolDictionaryScreen';
 import StatsScreen from './src/screens/StatsScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 
+import AppErrorBoundary from './src/components/AppErrorBoundary';
+
 const Tab = createBottomTabNavigator();
 
 function MainApp() {
@@ -97,8 +99,8 @@ function AppContent() {
 
 export default function App() {
   return (
-    <ThemeProvider>
+    <AppErrorBoundary><ThemeProvider>
       <AppContent />
-    </ThemeProvider>
+    </ThemeProvider></AppErrorBoundary>
   );
 }
