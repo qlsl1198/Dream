@@ -84,11 +84,11 @@ async function main() {
   assert.equal(MONGI_TUTORIAL.length, 5);
   assert.equal(new Set(MONGI_TUTORIAL.map(step => step.id)).size, 5);
   for (const step of MONGI_TUTORIAL) assert.ok(step.title && step.speech && step.detail && step.mood);
-  const { getCompanionReaction, getCompanionFrame, canAnimateCompanion, COMPANION_FRAMES } = load(root + '/src/utils/companionMood.ts');
+  const { getCompanionReaction, getCompanionFrame, getCompanionSpriteLocation, canAnimateCompanion, COMPANION_FRAMES, TOUCH_MOODS } = load(root + '/src/utils/companionMood.ts');
   assert.equal(getCompanionReaction({}).mood, 'idle');
   assert.equal(getCompanionReaction({ emotion: 'joy' }).mood, 'happy');
   assert.equal(getCompanionReaction({ emotion: 'neutral' }).mood, 'calm');
-  for (const emotion of ['sadness', 'fear', 'anger']) assert.equal(getCompanionReaction({ emotion }).mood, 'comfort');
+  for (const [emotion, mood] of [['sadness', 'sad'], ['fear', 'worried'], ['anger', 'determined']]) assert.equal(getCompanionReaction({ emotion }).mood, mood);
   assert.equal(getCompanionReaction({ emotion: 'surprise' }).mood, 'surprised');
   assert.equal(getCompanionReaction({ emotion: 'unknown' }).mood, 'idle');
   assert.equal(getCompanionReaction({ emotion: 'joy', interaction: 'calm' }).mood, 'calm');
@@ -97,8 +97,26 @@ async function main() {
   assert.equal(getCompanionFrame('idle'), null);
   // Idle must never briefly switch the entire body to the closed-eye artwork.
   for (let i = 0; i < 100; i++) assert.equal(getCompanionFrame('idle'), null);
-  assert.deepEqual(Object.values(COMPANION_FRAMES).sort(), [0, 1, 2, 3, 4, 5]);
+  assert.deepEqual(Object.values(COMPANION_FRAMES).sort((a,b) => a-b), Array.from({length:12},(_,i) => i));
   for (const mood of Object.keys(COMPANION_FRAMES)) assert.equal(getCompanionFrame(mood), COMPANION_FRAMES[mood]);
+  assert.equal(getCompanionSpriteLocation('idle'), null);
+  assert.deepEqual(getCompanionSpriteLocation('shy'), {sheet:1,column:0,row:0});
+  assert.deepEqual(getCompanionSpriteLocation('determined'), {sheet:1,column:2,row:1});
+  for (const mood of Object.keys(COMPANION_FRAMES)) {
+    const position = getCompanionSpriteLocation(mood);
+    assert.ok(position.sheet >= 0 && position.sheet < 2 && position.column < 3 && position.row < 2);
+    assert.equal(getCompanionReaction({interaction:mood}).mood, mood);
+    assert.ok(getCompanionReaction({interaction:mood}).label);
+  }
+  assert.equal(new Set(TOUCH_MOODS).size, 6);
+  assert.ok(TOUCH_MOODS.includes('shy') && TOUCH_MOODS.includes('curious') && TOUCH_MOODS.includes('sleepy'));
+  for (const name of ['mongi-emotions.png', 'mongi-emotions-extra.png']) {
+    const png = fs.readFileSync(root + '/assets/dream-world/' + name);
+    assert.equal(png.subarray(1,4).toString(), 'PNG');
+    assert.equal(png.readUInt32BE(16), 1536, 'three 512px sprite columns');
+    assert.equal(png.readUInt32BE(20), 1024, 'two 512px sprite rows');
+    assert.equal(png[25], 6, 'RGBA atlas with alpha');
+  }
   assert.equal(canAnimateCompanion(false, true, true), true);
   for (const args of [[true,true,true], [false,false,true], [false,true,false], [true,false,false]]) assert.equal(canAnimateCompanion(...args), false);
   const { DREAM_SYMBOLS, searchSymbols } = load(root + '/src/data/dreamSymbols.ts');

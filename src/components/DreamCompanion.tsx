@@ -2,10 +2,9 @@ import React, { useEffect, useRef, useState } from 'react';
 import { AccessibilityInfo, Animated, AppState, Easing, Pressable, StyleSheet, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { getConstellationProgress } from '../utils/dreamWorld';
-import { canAnimateCompanion, CompanionMood, getCompanionReaction } from '../utils/companionMood';
+import { canAnimateCompanion, CompanionMood, getCompanionReaction, TOUCH_MOODS } from '../utils/companionMood';
 import MongiSprite from './MongiSprite';
 
-const TOUCH_MOODS: CompanionMood[] = ['happy', 'surprised', 'calm'];
 const STAR_POINTS = [{ x: 8, y: 28 }, { x: 25, y: 60 }, { x: 42, y: 18 }, { x: 59, y: 48 }, { x: 76, y: 12 }, { x: 93, y: 36 }];
 
 interface Props { count: number | null; busy: boolean; justSaved: boolean; emotion?: string; focused?: boolean }
