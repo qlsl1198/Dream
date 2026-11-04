@@ -2,7 +2,7 @@
   "expo": {
     "name": "드림로그",
     "slug": "DreamInterpreterApp",
-    "version": "1.1.0",
+    "version": "1.2.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -14,6 +14,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.qlsl1198.DreamInterpreterApp",
+      "buildNumber": "3",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "UIApplicationSceneManifest": {
@@ -48,7 +49,8 @@
         "backgroundColor": "#0B1426"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.qlsl1198.DreamInterpreterApp"
+      "package": "com.qlsl1198.DreamInterpreterApp",
+      "versionCode": 3
     },
     "web": {
       "favicon": "./assets/icon-32.png"

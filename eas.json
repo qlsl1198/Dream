@@ -1,9 +1,17 @@
 {
   "cli": {
-    "version": ">= 16.14.0",
+    "version": ">= 25.3.0",
     "appVersionSource": "remote"
   },
   "build": {
+    "store-simulator": {
+      "distribution": "internal",
+      "node": "22.14.0",
+      "ios": {
+        "simulator": true,
+        "image": "latest"
+      }
+    },
     "development": {
       "developmentClient": true,
       "distribution": "internal"
@@ -16,12 +24,21 @@
     },
     "production": {
       "autoIncrement": true,
+      "node": "22.14.0",
+      "ios": {
+        "image": "latest"
+      },
       "android": {
         "buildType": "app-bundle"
       }
     }
   },
   "submit": {
-    "production": {}
+    "production": {
+      "ios": {
+        "ascAppId": "6825689455",
+        "appleTeamId": "4UTM2VZ53U"
+      }
+    }
   }
 }
