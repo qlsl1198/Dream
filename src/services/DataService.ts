@@ -7,7 +7,7 @@ export const USER_DATA_KEYS = [
   'dream_records', 'memory_records', 'dream_feedback', 'app_suggestions',
   'dream_streak_meta', 'lastBackupDate', 'dream_draft', 'theme',
   'notification_settings', 'has_completed_onboarding',
-  'privacy_consent_accepted', 'att_permission_asked',
+  'privacy_consent_accepted', 'att_permission_asked', 'mongi_tutorial_version',
 ];
 
 export class DataService {

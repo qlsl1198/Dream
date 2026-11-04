@@ -47,6 +47,21 @@ function load(file) {
 }
 
 async function main() {
+  const { OnboardingService } = load(root + '/src/services/OnboardingService.ts');
+  assert.equal(await OnboardingService.hasCompletedOnboarding(), false);
+  values.set('has_completed_onboarding', 'true');
+  assert.equal(await OnboardingService.hasCompletedOnboarding(), false, 'existing users see Mongi tutorial once');
+  await OnboardingService.completeOnboarding();
+  assert.equal(await OnboardingService.hasCompletedOnboarding(), true);
+  assert.equal(await OnboardingService.hasAcceptedPrivacy(), false, 'tutorial does not silently record privacy consent');
+  values.set('mongi_tutorial_version', 'old');
+  assert.equal(await OnboardingService.hasCompletedOnboarding(), false);
+  await OnboardingService.reset();
+  assert.equal(values.has('mongi_tutorial_version'), false);
+  const { MONGI_TUTORIAL } = load(root + '/src/data/mongiTutorial.ts');
+  assert.equal(MONGI_TUTORIAL.length, 5);
+  assert.equal(new Set(MONGI_TUTORIAL.map(step => step.id)).size, 5);
+  for (const step of MONGI_TUTORIAL) assert.ok(step.title && step.speech && step.detail && step.mood);
   const { getCompanionReaction, getCompanionFrame, canAnimateCompanion, COMPANION_FRAMES } = load(root + '/src/utils/companionMood.ts');
   assert.equal(getCompanionReaction({}).mood, 'idle');
   assert.equal(getCompanionReaction({ emotion: 'joy' }).mood, 'happy');
