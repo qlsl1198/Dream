@@ -14,7 +14,8 @@ import AdMobBanner from '../components/AdMobBanner';
 import { useTheme } from '../contexts/ThemeContext';
 import { DreamStorage, DreamRecord } from '../services/DreamStorage';
 import { StreakService, StreakInfo } from '../services/StreakService';
-import { getEmotionColor, getEmotionEmoji, getEmotionLabel, extractKeywords } from '../utils/dreamHelpers';
+import { getEmotionColor, getEmotionLabel, extractKeywords } from '../utils/dreamHelpers';
+import EmotionIcon from '../components/EmotionIcon';
 import DreamPageHeader from '../components/DreamPageHeader';
 import DreamJourneyBanner from '../components/DreamJourneyBanner';
 import { dreamLayout } from '../constants/DreamDesign';
@@ -136,7 +137,7 @@ export default function StatsScreen() {
         {streak && (
           <View style={[styles.streakCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <View style={styles.streakItem}>
-              <Ionicons name="flame" size={22} color={colors.warning} />
+              <Ionicons name="flame-outline" size={22} color={colors.accent} />
               <Text style={[styles.streakValue, { color: colors.text }]}>{streak.currentStreak}</Text>
               <Text style={{ color: colors.textSecondary, fontSize: 12 }}>연속 기록</Text>
             </View>
@@ -146,7 +147,7 @@ export default function StatsScreen() {
               <Text style={{ color: colors.textSecondary, fontSize: 12 }}>최장 기록</Text>
             </View>
             <View style={styles.streakItem}>
-              <Ionicons name="moon-outline" size={22} color={colors.primary} />
+              <Ionicons name="moon-outline" size={22} color={colors.accent} />
               <Text style={[styles.streakValue, { color: colors.text }]}>{streak.totalDreams}</Text>
               <Text style={{ color: colors.textSecondary, fontSize: 12 }}>전체 꿈</Text>
             </View>
@@ -179,7 +180,7 @@ export default function StatsScreen() {
             return (
               <View key={emotion} style={styles.emotionRow}>
                 <View style={styles.emotionInfo}>
-                  <Text style={styles.emotionEmoji}>{getEmotionEmoji(emotion)}</Text>
+                  <View style={styles.emotionIcon}><EmotionIcon emotion={emotion} size={20} /></View>
                   <Text style={[styles.emotionLabel, { color: colors.text }]}>{getEmotionLabel(emotion)}</Text>
                 </View>
                 <View style={styles.progressContainer}>
@@ -274,7 +275,7 @@ const styles = StyleSheet.create({
   chartTitle: { fontSize: 18, fontWeight: '700', marginBottom: 18 },
   emotionRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
   emotionInfo: { flexDirection: 'row', alignItems: 'center', width: 88 },
-  emotionEmoji: { fontSize: 18, marginRight: 6 },
+  emotionIcon: { marginRight: 6 },
   emotionLabel: { fontSize: 13, fontWeight: '600' },
   progressContainer: { flex: 1, flexDirection: 'row', alignItems: 'center' },
   progressBar: { flex: 1, height: 8, borderRadius: 4, marginRight: 8, overflow: 'hidden' },
