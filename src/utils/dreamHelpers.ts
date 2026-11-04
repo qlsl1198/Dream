@@ -1,5 +1,18 @@
 import { EMOTIONS, DREAM_TYPES, EmotionKey, DreamTypeKey } from '../constants/AppConfig';
 
+/** Calendar day in the device time zone, not the previous UTC day. */
+export function localDateKey(date = new Date()): string {
+  return [date.getFullYear(), String(date.getMonth() + 1).padStart(2, '0'), String(date.getDate()).padStart(2, '0')].join('-');
+}
+
+export function parseLocalDate(value: string): Date {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    const [year, month, day] = value.split('-').map(Number);
+    return new Date(year, month - 1, day);
+  }
+  return new Date(value);
+}
+
 export function getEmotionLabel(emotion: string): string {
   return EMOTIONS.find((e) => e.key === emotion)?.label || emotion || '평온';
 }
@@ -25,7 +38,7 @@ export function isValidDreamType(value: string): value is DreamTypeKey {
 }
 
 export function formatRelativeDate(dateString: string): string {
-  const date = new Date(dateString);
+  const date = parseLocalDate(dateString);
   const today = new Date();
   const yesterday = new Date(today);
   yesterday.setDate(yesterday.getDate() - 1);
@@ -41,7 +54,7 @@ export function formatRelativeDate(dateString: string): string {
 }
 
 export function formatFullDate(dateString: string): string {
-  return new Date(dateString).toLocaleDateString('ko-KR', {
+  return parseLocalDate(dateString).toLocaleDateString('ko-KR', {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
@@ -60,7 +73,7 @@ export function calculateStreak(dates: string[]): number {
   let cursor = new Date(today);
 
   for (const day of uniqueDays) {
-    const dayDate = new Date(day);
+    const dayDate = parseLocalDate(day);
     dayDate.setHours(0, 0, 0, 0);
     const diffDays = Math.round((cursor.getTime() - dayDate.getTime()) / (1000 * 60 * 60 * 24));
 
