@@ -8,20 +8,28 @@ ENV['RCT_NEW_ARCH_ENABLED'] = '0' if podfile_properties['newArchEnabled'] == 'fa
 ENV['EX_DEV_CLIENT_NETWORK_INSPECTOR'] = podfile_properties['EX_DEV_CLIENT_NETWORK_INSPECTOR']
 
 platform :ios, podfile_properties['ios.deploymentTarget'] || '15.1'
+project 'DreamInterpreterApp.xcodeproj'
 install! 'cocoapods',
   :deterministic_uuids => false
 
 prepare_react_native_project!
 
 target 'DreamInterpreterApp' do
-  use_expo_modules!
+  # SDK 53 resolves configured search paths relative to the command's cwd (ios).
+  # Pass absolute paths so CocoaPods and root-level Expo commands agree.
+  use_expo_modules!(:searchPaths => [
+    File.expand_path('../node_modules', __dir__),
+    File.expand_path('../node_modules/expo/node_modules', __dir__)
+  ])
 
   if ENV['EXPO_USE_COMMUNITY_AUTOLINKING'] == '1'
     config_command = ['node', '-e', "process.argv=['', '', 'config'];require('@react-native-community/cli').run()"];
   else
     config_command = [
-      'npx',
-      'expo-modules-autolinking',
+      'node',
+      '--no-warnings',
+      '--eval',
+      "require(require.resolve('expo-modules-autolinking', { paths: [require.resolve('expo/package.json')] }))(process.argv.slice(1))",
       'react-native-config',
       '--json',
       '--platform',
@@ -49,6 +57,42 @@ target 'DreamInterpreterApp' do
       :mac_catalyst_enabled => false,
       :ccache_enabled => podfile_properties['apple.ccacheEnabled'] == 'true',
     )
+
+    # Resource bundles may retain an older iOS target than the app. New Xcode
+    # SDKs reject these targets before compiling, so align only lower targets.
+    minimum_ios = Gem::Version.new(podfile_properties['ios.deploymentTarget'] || '15.1')
+    installer.pods_project.targets.each do |target|
+      target.build_configurations.each do |configuration|
+        current = configuration.build_settings['IPHONEOS_DEPLOYMENT_TARGET']
+        if current.nil? || Gem::Version.new(current) < minimum_ios
+          configuration.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = minimum_ios.to_s
+        end
+      end
+    end
+
+    # RN's Hermes switcher caches only Debug/Release, not the engine version.
+    # Installing a new pod can otherwise leave a stale Release marker beside
+    # the newly installed Debug artifact. Force the next build (in either mode)
+    # to extract the matching artifact instead of trusting the previous marker.
+    if File.directory?(File.join(installer.sandbox.root, 'hermes-engine'))
+      File.write(File.join(installer.sandbox.root, '.last_build_configuration'), 'PodInstall')
+    end
+
+    # fmt 11.0.2's consteval detection is incompatible with newer Apple Clang.
+    # Keep this generated-header fix reproducible on local and EAS builds.
+    # Upstream: https://github.com/fmtlib/fmt/issues/4740
+    fmt_header = File.join(installer.sandbox.root, 'fmt/include/fmt/base.h')
+    if File.exist?(fmt_header)
+      original = File.read(fmt_header)
+      fixed = original.sub(
+        '#if !defined(__cpp_lib_is_constant_evaluated)',
+        "#if defined(__apple_build_version__) && __apple_build_version__ >= 17000000L\n#  define FMT_USE_CONSTEVAL 0\n#elif !defined(__cpp_lib_is_constant_evaluated)"
+      )
+      if fixed != original
+        File.chmod(0644, fmt_header)
+        File.write(fmt_header, fixed)
+      end
+    end
 
     # This is necessary for Xcode 14, because it signs resource bundles by default
     # when building for devices.
