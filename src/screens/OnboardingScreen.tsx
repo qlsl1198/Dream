@@ -3,19 +3,22 @@ import {
   View,
   Text,
   StyleSheet,
-  Dimensions,
+  useWindowDimensions,
+  Modal,
+  Alert,
   TouchableOpacity,
   FlatList,
   NativeSyntheticEvent,
   NativeScrollEvent,
   SafeAreaView,
+  Image,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { APP_CONFIG } from '../constants/AppConfig';
 import { OnboardingService } from '../services/OnboardingService';
 
-const { width } = Dimensions.get('window');
+import LegalScreen from './LegalScreen';
 
 interface Slide {
   key: string;
@@ -29,7 +32,7 @@ const SLIDES: Slide[] = [
     key: '1',
     icon: 'moon',
     title: '꿈을 남기고\n의미를 찾으세요',
-    description: '잠에서 깨자마자 꿈을 기록하면 AI와 상징 사전이 해석을 도와드립니다.',
+    description: '기기 안에서 꿈을 돌아보세요. iOS 26과 Apple Intelligence 지원 기기에서는 온디바이스 AI, 그 외에는 기본 해석을 제공합니다.',
   },
   {
     key: '2',
@@ -40,8 +43,8 @@ const SLIDES: Slide[] = [
   {
     key: '3',
     icon: 'analytics',
-    title: '패턴과 스트릭으로\n꾸준히',
-    description: '감정 통계, 연속 기록, 알림으로 꿈 일기를 습관으로 만드세요. 데이터는 기기에만 저장됩니다.',
+    title: '나의 속도로\n꿈을 모아보세요',
+    description: '몽이와 함께 꿈을 별처럼 모아보세요. 감정과 상징을 돌아보며 나만의 이야기를 발견할 수 있어요. 데이터는 기기에만 저장됩니다.',
   },
 ];
 
@@ -50,7 +53,10 @@ interface OnboardingScreenProps {
 }
 
 export default function OnboardingScreen({ onDone }: OnboardingScreenProps) {
+  const { width } = useWindowDimensions();
   const [index, setIndex] = useState(0);
+  const [legalOpen, setLegalOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
   const listRef = useRef<FlatList>(null);
 
   const handleScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
@@ -59,9 +65,14 @@ export default function OnboardingScreen({ onDone }: OnboardingScreenProps) {
   };
 
   const finish = async () => {
-    await OnboardingService.acceptPrivacy();
-    await OnboardingService.completeOnboarding();
-    onDone();
+    if (saving) return;
+    setSaving(true);
+    try {
+      await OnboardingService.acceptPrivacy();
+      await OnboardingService.completeOnboarding();
+      onDone();
+    } catch { Alert.alert('저장 실패', '다시 시도해주세요.'); }
+    finally { setSaving(false); }
   };
 
   const next = () => {
@@ -89,10 +100,10 @@ export default function OnboardingScreen({ onDone }: OnboardingScreenProps) {
           onScroll={handleScroll}
           keyExtractor={(item) => item.key}
           renderItem={({ item }) => (
-            <View style={styles.slide}>
-              <View style={styles.iconWrap}>
+            <View style={[styles.slide, { width }]}>
+              {item.key === '1' ? <Image source={require('../../assets/dream-world/mongi.png')} style={{ width: 148, height: 148, marginBottom: 20 }} resizeMode="contain" accessible={false} /> : <View style={styles.iconWrap}>
                 <Ionicons name={item.icon} size={52} color="#E8D5A3" />
-              </View>
+              </View>}
               <Text style={styles.brand}>{APP_CONFIG.name}</Text>
               <Text style={styles.title}>{item.title}</Text>
               <Text style={styles.description}>{item.description}</Text>
@@ -108,14 +119,16 @@ export default function OnboardingScreen({ onDone }: OnboardingScreenProps) {
           </View>
 
           <Text style={styles.privacyNote}>
-            계속 진행하면 개인정보 처리방침에 동의하며,{'\n'}꿈 기록은 기기에만 저장됩니다.
+            꿈 기록은 기기에 저장되고 AI 처리도 기기 안에서 진행됩니다. 공유와 백업은 직접 선택할 때만 내보냅니다.
           </Text>
 
-          <TouchableOpacity style={styles.cta} onPress={next} activeOpacity={0.85}>
+          <TouchableOpacity onPress={() => setLegalOpen(true)} accessibilityRole="link" style={{ padding: 12, alignItems: 'center' }}><Text style={{ color: '#E8D5A3' }}>개인정보 처리방침 읽기</Text></TouchableOpacity>
+          <TouchableOpacity disabled={saving} style={styles.cta} onPress={next} activeOpacity={0.85}>
             <Text style={styles.ctaText}>{index === SLIDES.length - 1 ? '시작하기' : '다음'}</Text>
             <Ionicons name="arrow-forward" size={18} color="#0B1426" />
           </TouchableOpacity>
         </View>
+        <Modal visible={legalOpen} animationType="slide" onRequestClose={() => setLegalOpen(false)}><LegalScreen type="privacy" onClose={() => setLegalOpen(false)} /></Modal>
       </LinearGradient>
     </SafeAreaView>
   );
@@ -127,7 +140,6 @@ const styles = StyleSheet.create({
   skip: { alignSelf: 'flex-end', padding: 20 },
   skipText: { color: 'rgba(255,255,255,0.6)', fontSize: 14 },
   slide: {
-    width,
     paddingHorizontal: 32,
     alignItems: 'center',
     justifyContent: 'center',
