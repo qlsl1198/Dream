@@ -13,6 +13,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../contexts/ThemeContext';
 import { DreamRecord, DreamStorage } from '../services/DreamStorage';
 import { ShareService } from '../services/ShareService';
+import DreamSceneCard from '../components/DreamSceneCard';
+import { dreamLayout } from '../constants/DreamDesign';
 import {
   formatFullDate,
   getDreamTypeLabel,
@@ -64,26 +66,27 @@ export default function DreamDetailModal({ dream, visible, onClose, onChanged }:
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
       <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
         <View style={[styles.header, { borderBottomColor: colors.border }]}>
-          <TouchableOpacity onPress={onClose}>
+          <TouchableOpacity accessibilityRole="button" accessibilityLabel="꿈 상세 닫기" style={styles.closeButton} onPress={onClose}>
             <Ionicons name="close" size={24} color={colors.text} />
           </TouchableOpacity>
-          <Text style={[styles.headerTitle, { color: colors.text }]}>꿈 상세</Text>
+          <Text style={[styles.headerTitle, { color: colors.text }]}>꿈 한 장</Text>
           <View style={styles.headerActions}>
-            <TouchableOpacity onPress={toggleFavorite} style={styles.iconBtn}>
+            <TouchableOpacity accessibilityRole="button" accessibilityLabel={dream.isFavorite ? '즐겨찾기 해제' : '즐겨찾기 추가'} onPress={toggleFavorite} style={styles.iconBtn}>
               <Ionicons
                 name={dream.isFavorite ? 'heart' : 'heart-outline'}
                 size={22}
                 color={dream.isFavorite ? colors.error : colors.text}
               />
             </TouchableOpacity>
-            <TouchableOpacity onPress={handleShare} style={styles.iconBtn}>
+            <TouchableOpacity accessibilityRole="button" accessibilityLabel="꿈 공유하기" onPress={handleShare} style={styles.iconBtn}>
               <Ionicons name="share-outline" size={22} color={colors.text} />
             </TouchableOpacity>
           </View>
         </View>
 
-        <ScrollView contentContainerStyle={styles.body}>
+        <ScrollView contentContainerStyle={dreamLayout.body}>
           <Text style={[styles.date, { color: colors.textSecondary }]}>{formatFullDate(dream.date)}</Text>
+          <DreamSceneCard content={dream.content} symbols={dream.matchedSymbols} />
 
           <View style={styles.metaRow}>
             <Text style={styles.metaEmoji}>{getEmotionEmoji(dream.emotion)}</Text>
@@ -97,7 +100,7 @@ export default function DreamDetailModal({ dream, visible, onClose, onChanged }:
             ) : null}
             <View style={[styles.chip, { backgroundColor: colors.success + '22' }]}>
               <Text style={{ color: colors.success, fontSize: 12, fontWeight: '600' }}>
-                신뢰도 {Math.round(dream.confidence * 100)}%
+                해석 참고 지수 {Math.round(dream.confidence * 100)}%
               </Text>
             </View>
           </View>
@@ -182,9 +185,10 @@ const styles = StyleSheet.create({
     padding: 16,
     borderBottomWidth: 1,
   },
-  headerTitle: { fontSize: 17, fontWeight: '700' },
+  headerTitle: { fontSize: 20, fontWeight: '700' },
   headerActions: { flexDirection: 'row', alignItems: 'center' },
-  iconBtn: { padding: 4, marginLeft: 8 },
+  iconBtn: { padding: 10, minWidth: 44, minHeight: 44, justifyContent: 'center', alignItems: 'center' },
+  closeButton: { minWidth: 44, minHeight: 44, justifyContent: 'center', alignItems: 'center' },
   body: { padding: 20, paddingBottom: 40 },
   date: { fontSize: 13, marginBottom: 10 },
   metaRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginBottom: 12 },
@@ -192,9 +196,9 @@ const styles = StyleSheet.create({
   metaText: { fontSize: 15, fontWeight: '600' },
   chip: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
   scoreRow: { flexDirection: 'row', gap: 16, marginBottom: 12 },
-  sectionTitle: { fontSize: 16, fontWeight: '700', marginTop: 16, marginBottom: 8 },
+  sectionTitle: { fontSize: 18, fontWeight: '700', marginTop: 24, marginBottom: 12 },
   content: { fontSize: 15, lineHeight: 24 },
-  card: { borderWidth: 1, borderRadius: 12, padding: 14 },
+  card: { borderWidth: 1, borderRadius: 22, padding: 20 },
   tags: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4 },
   tag: { borderWidth: 1, borderRadius: 14, paddingHorizontal: 10, paddingVertical: 4 },
   recoRow: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 8 },

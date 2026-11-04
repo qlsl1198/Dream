@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   SafeAreaView,
   TextInput,
   RefreshControl,
+  ImageBackground,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
@@ -19,6 +20,11 @@ import {
   getEmotionEmoji,
 } from '../utils/dreamHelpers';
 import DreamDetailModal from './DreamDetailModal';
+import { LinearGradient } from 'expo-linear-gradient';
+import DreamPageHeader, { DreamEmptyState } from '../components/DreamPageHeader';
+import { dreamLayout } from '../constants/DreamDesign';
+import { getDreamScene } from '../utils/dreamWorld';
+import { getDreamArtwork } from '../components/dreamArtwork';
 
 type FilterMode = 'all' | 'favorite' | 'lucid' | 'nightmare';
 
@@ -29,8 +35,11 @@ export default function HistoryScreen() {
   const [filter, setFilter] = useState<FilterMode>('all');
   const [selected, setSelected] = useState<DreamRecord | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [readError, setReadError] = useState(false);
+  const request = useRef(0);
 
   const loadDreams = useCallback(async () => {
+    const requestId = ++request.current;
     try {
       let data = query.trim()
         ? await DreamStorage.searchDreams(query)
@@ -40,15 +49,17 @@ export default function HistoryScreen() {
       if (filter === 'lucid') data = data.filter((d) => d.dreamType === 'lucid');
       if (filter === 'nightmare') data = data.filter((d) => d.dreamType === 'nightmare');
 
-      setDreams(data);
+      if (requestId === request.current) { setDreams(data); setReadError(false); }
     } catch (error) {
       console.error('꿈 기록 불러오기 오류:', error);
+      if (requestId === request.current) setReadError(true);
     }
   }, [query, filter]);
 
   useFocusEffect(
     useCallback(() => {
       loadDreams();
+      return () => { request.current++; };
     }, [loadDreams])
   );
 
@@ -70,7 +81,15 @@ export default function HistoryScreen() {
       style={[styles.dreamItem, { backgroundColor: colors.surface, borderColor: colors.border }]}
       onPress={() => setSelected(item)}
       activeOpacity={0.75}
+      accessibilityRole="button"
+      accessibilityLabel={`${formatRelativeDate(item.date)} 꿈 기록 열기, ${item.content.slice(0, 40)}`}
     >
+      <ImageBackground source={getDreamArtwork(item.content, item.matchedSymbols)} style={styles.cover}>
+        <LinearGradient colors={['transparent', '#0B1426CC']} style={styles.coverShade}>
+          <Text style={styles.coverTitle}>{getDreamScene(item.content, item.matchedSymbols).title}</Text>
+        </LinearGradient>
+      </ImageBackground>
+      <View style={styles.entryBody}>
       <View style={styles.dreamHeader}>
         <View style={styles.dreamInfo}>
           <Text style={[styles.dreamDate, { color: colors.text }]}>{formatRelativeDate(item.date)}</Text>
@@ -90,7 +109,7 @@ export default function HistoryScreen() {
         <View style={styles.confidenceContainer}>
           <Ionicons name="analytics-outline" size={14} color={colors.primary} />
           <Text style={[styles.confidenceText, { color: colors.textSecondary }]}>
-            {Math.round(item.confidence * 100)}%
+            해석 참고 {Math.round(item.confidence * 100)}%
           </Text>
         </View>
         {item.matchedSymbols && item.matchedSymbols.length > 0 ? (
@@ -104,18 +123,15 @@ export default function HistoryScreen() {
           </View>
         )}
       </View>
+      </View>
     </TouchableOpacity>
   );
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-      <View style={styles.header}>
-        <Text style={[styles.headerTitle, { color: colors.text }]}>꿈 기록</Text>
-        <Text style={[styles.headerSubtitle, { color: colors.textSecondary }]}>
-          {dreams.length}개의 기록
-        </Text>
-      </View>
+      <DreamPageHeader title="꿈 앨범" subtitle="밤마다 모아둔 나의 이야기" />
 
+      <View style={dreamLayout.column}>
       <View
         style={[
           styles.searchBox,
@@ -129,7 +145,9 @@ export default function HistoryScreen() {
           placeholderTextColor={colors.textSecondary}
           value={query}
           onChangeText={setQuery}
+          accessibilityLabel="꿈 기록 검색"
         />
+        {query ? <TouchableOpacity accessibilityRole="button" accessibilityLabel="검색어 지우기" onPress={() => setQuery('')} style={{ padding: 4 }}><Ionicons name="close-circle" size={20} color={colors.textSecondary} /></TouchableOpacity> : null}
       </View>
 
       <View style={styles.filterRow}>
@@ -139,15 +157,17 @@ export default function HistoryScreen() {
             style={[
               styles.filterChip,
               {
-                backgroundColor: filter === f.key ? colors.primary : colors.surface,
-                borderColor: filter === f.key ? colors.primary : colors.border,
+                backgroundColor: filter === f.key ? colors.accent : colors.surface,
+                borderColor: filter === f.key ? colors.accent : colors.border,
               },
             ]}
             onPress={() => setFilter(f.key)}
+            accessibilityRole="button"
+            accessibilityState={{ selected: filter === f.key }}
           >
             <Text
               style={{
-                color: filter === f.key ? '#fff' : colors.text,
+                color: filter === f.key ? colors.onAccent : colors.text,
                 fontSize: 12,
                 fontWeight: '600',
               }}
@@ -157,21 +177,17 @@ export default function HistoryScreen() {
           </TouchableOpacity>
         ))}
       </View>
+      {readError ? <Text accessibilityRole="alert" style={{ color: colors.error, paddingHorizontal: 24, paddingBottom: 12 }}>기록을 읽지 못했어요. 기존 데이터는 보존됩니다. 아래로 당겨 다시 시도해주세요.</Text> : null}
+      </View>
 
       <FlatList
         data={dreams}
         renderItem={renderDreamItem}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={[styles.listContainer, dreams.length === 0 && styles.emptyListContainer]}
+        contentContainerStyle={[dreamLayout.column, styles.listContainer, dreams.length === 0 && styles.emptyListContainer]}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Ionicons name="moon-outline" size={64} color={colors.textSecondary} />
-            <Text style={[styles.emptyTitle, { color: colors.text }]}>아직 꿈 기록이 없습니다</Text>
-            <Text style={[styles.emptySubtitle, { color: colors.textSecondary }]}>
-              첫 꿈을 기록하고 해석해보세요
-            </Text>
-          </View>
+          <DreamEmptyState title={readError ? '꿈을 다시 불러와주세요' : query || filter !== 'all' ? '아직 찾는 꿈이 없어요' : '첫 번째 꿈을 기다려요'} description={query || filter !== 'all' ? '검색어나 필터를 바꿔 다른 꿈을 찾아보세요.' : '해석 탭에서 꿈을 남기면 이곳에 한 장씩 모여요.'} />
         }
         showsVerticalScrollIndicator={false}
       />
@@ -198,11 +214,11 @@ const styles = StyleSheet.create({
   headerTitle: { fontSize: 24, fontWeight: '700', marginBottom: 4 },
   headerSubtitle: { fontSize: 14 },
   searchBox: {
-    marginHorizontal: 20,
+    marginHorizontal: 24,
     borderWidth: 1,
-    borderRadius: 12,
+    borderRadius: 16,
     paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingVertical: 14,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
@@ -210,24 +226,29 @@ const styles = StyleSheet.create({
   searchInput: { flex: 1, fontSize: 14, padding: 0 },
   filterRow: {
     flexDirection: 'row',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
+    paddingHorizontal: 24,
+    paddingVertical: 16,
+    flexWrap: 'wrap',
     gap: 8,
   },
   filterChip: {
     borderWidth: 1,
     borderRadius: 16,
     paddingHorizontal: 12,
-    paddingVertical: 7,
+    paddingVertical: 11,
   },
-  listContainer: { padding: 20, paddingTop: 4 },
-  emptyListContainer: { flex: 1, justifyContent: 'center' },
+  listContainer: { padding: 24, paddingTop: 4, paddingBottom: 32 },
+  emptyListContainer: { flexGrow: 1, justifyContent: 'center' },
   dreamItem: {
-    borderRadius: 14,
-    padding: 16,
-    marginBottom: 12,
+    borderRadius: 22,
+    overflow: 'hidden',
+    marginBottom: 20,
     borderWidth: 1,
   },
+  cover: { height: 132, justifyContent: 'flex-end' },
+  coverShade: { padding: 18, paddingTop: 36 },
+  coverTitle: { fontSize: 18, fontWeight: '700', color: '#F7F1E5' },
+  entryBody: { padding: 20 },
   dreamHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
