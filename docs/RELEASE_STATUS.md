@@ -1,5 +1,15 @@
 # iOS 배포 상태 — 2026-11-04
 
+## TestFlight 빌드 17 진행 — 별자리·내용별 배경
+
+사용자는 이번 변경의 TestFlight 반영만 요청했다. 기존 App Review 빌드 16 제출은 변경하지 않는다.
+
+- 소스 `ef53feccb00e3457a93aea4d9a7e66ec496570d6`.
+- 의존 순서: `fix/content-aware-dream-scenes` (`6c5bb8d`) → `feat/dream-constellation-map` (`d523cad`) → `feat/constellation-sparkle` (`ef53fec`) → 배포 기록 `fix/ios-constellation-testflight`. main 병합 없음.
+- EAS 배포 빌드 **1.2.0(17)**: `4eb15f57-f878-4cb1-a8de-0d9063dd3a1c`. 소스 업로드 완료, 서명 빌드 결과 대기 중.
+- Node 22 타입·회귀 검사·diff 검사를 다시 통과했다. 이전 작업에서 iOS Hermes 번들 통과 및 웹 390/820 화면의 오늘 별 점멸·1→6 순차·전체 반짝임·동작 줄이기·탭 정지/복귀를 확인했다.
+- 빌드 17의 실기기 검증·TestFlight 준비 완료는 아직 확인하지 않았다. 7종 배경은 번들 일러스트의 로컬 선택이며 실시간 이미지 생성/외부 전송이 아니다.
+
 ## 최종 최신 상태 — 2026-11-05 00:31 KST
 
 **TestFlight 1.2.0(16) 반영 및 App Review 재심사 제출 완료, 현재 심사 대기 중.**
