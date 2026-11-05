@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { AccessibilityInfo, Animated, AppState, Easing, Pressable, StyleSheet, Text, View } from 'react-native';
+import { AccessibilityInfo, Animated, AppState, Easing, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import DreamConstellation from './DreamConstellation';
 import { canAnimateCompanion, CompanionMood, getCompanionReaction, TOUCH_MOODS } from '../utils/companionMood';
@@ -9,6 +9,7 @@ import MongiSprite from './MongiSprite';
 interface Props { count: number | null; starDates?: string; busy: boolean; justSaved: boolean; emotion?: string; focused?: boolean }
 
 export default function DreamCompanion({ count, starDates = '', busy, justSaved, emotion = '', focused = true }: Props) {
+  const narrow = useWindowDimensions().width < 360;
   const touches = useRef(0);
   const [interaction, setInteraction] = useState<CompanionMood | null>(null);
   const [celebrating, setCelebrating] = useState(false);
@@ -78,7 +79,7 @@ export default function DreamCompanion({ count, starDates = '', busy, justSaved,
           <Text accessibilityLiveRegion="polite" style={styles.message}>{reaction.message}</Text>
           <Text style={styles.tapHint}>몽이를 살짝 눌러 인사해요</Text>
         </View>
-        <Pressable onPress={greet} accessibilityRole="button" accessibilityLabel={`달토끼 몽이에게 인사하기. ${reaction.label}`} accessibilityHint="살짝 누르면 표정과 인사가 바뀝니다" style={styles.rabbitButton}>
+        <Pressable onPress={greet} accessibilityRole="button" accessibilityLabel={`달토끼 몽이에게 인사하기. ${reaction.label}`} accessibilityHint="살짝 누르면 표정과 인사가 바뀝니다" style={[styles.rabbitButton, narrow && styles.narrowRabbit]}>
           <Animated.View pointerEvents="none" style={[styles.glow, { opacity: pulse.interpolate({ inputRange: [0, 1], outputRange: [0.08, 0.22] }) }]} />
           <Animated.View style={{ transform: [{ translateY: ambient.interpolate({ inputRange: [0, 1], outputRange: [0, lift] }) },
             { rotate: ambient.interpolate({ inputRange: [0, 1], outputRange: [reaction.mood === 'thinking' ? '-3deg' : '-1deg', reaction.mood === 'thinking' ? '3deg' : '1deg'] }) },
@@ -103,6 +104,7 @@ const styles = StyleSheet.create({
   message: { color: '#DBE5F5', fontSize: 13, lineHeight: 20, marginTop: 6 },
   tapHint: { color: '#A8BCD9', fontSize: 10, lineHeight: 16, marginTop: 8 },
   rabbitButton: { width: '34%', maxWidth: 150, minWidth: 82, minHeight: 104, flexShrink: 0, justifyContent: 'center' },
+  narrowRabbit: { width: '28%', minWidth: 72 },
   glow: { position: 'absolute', width: 94, height: 94, borderRadius: 47, backgroundColor: '#E8CE96', alignSelf: 'center' },
   sparkle: { position: 'absolute', right: 2, top: 16, color: '#F5D88C', fontSize: 22 },
 });
