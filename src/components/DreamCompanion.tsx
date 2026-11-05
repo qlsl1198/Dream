@@ -6,9 +6,9 @@ import { canAnimateCompanion, CompanionMood, getCompanionReaction, TOUCH_MOODS }
 import MongiSprite from './MongiSprite';
 
 
-interface Props { count: number | null; busy: boolean; justSaved: boolean; emotion?: string; focused?: boolean }
+interface Props { count: number | null; starDates?: string; busy: boolean; justSaved: boolean; emotion?: string; focused?: boolean }
 
-export default function DreamCompanion({ count, busy, justSaved, emotion = '', focused = true }: Props) {
+export default function DreamCompanion({ count, starDates = '', busy, justSaved, emotion = '', focused = true }: Props) {
   const touches = useRef(0);
   const [interaction, setInteraction] = useState<CompanionMood | null>(null);
   const [celebrating, setCelebrating] = useState(false);
@@ -88,7 +88,7 @@ export default function DreamCompanion({ count, busy, justSaved, emotion = '', f
           <Animated.Text pointerEvents="none" accessible={false} style={[styles.sparkle, { opacity: pulse, transform: [{ translateY: pulse.interpolate({ inputRange: [0, 1], outputRange: [4, -8] }) }] }]}>✦</Animated.Text>
         </Pressable>
       </LinearGradient>
-      <DreamConstellation count={count} />
+      <DreamConstellation count={count} starDates={starDates} animate={animated && !busy} />
     </View>
   );
 }

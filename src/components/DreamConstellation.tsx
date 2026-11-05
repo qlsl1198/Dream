@@ -1,15 +1,46 @@
-import React, { memo, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import React, { memo, useEffect, useRef, useState } from 'react';
+import { Animated, Easing, StyleSheet, Text, View } from 'react-native';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { constellationLine, getConstellationMap } from '../utils/constellation';
+import { constellationLine, constellationMotionMode, getConstellationMap, todayStarMask } from '../utils/constellation';
+import { localDateKey } from '../utils/dreamHelpers';
 
 const DUST = [[7, 19], [20, 76], [43, 10], [87, 74], [94, 20], [10, 55], [80, 9], [47, 90], [58, 45], [34, 85], [89, 49], [18, 8]];
 const HEIGHT = 138;
 
-function DreamConstellation({ count }: { count: number | null }) {
+function DreamConstellation({ count, starDates = '', animate = false }: { count: number | null; starDates?: string; animate?: boolean }) {
   const [width, setWidth] = useState(0);
+  const [today, setToday] = useState(localDateKey);
+  const lights = useRef(Array.from({ length: 6 }, () => new Animated.Value(0))).current;
   const map = getConstellationMap(count);
   const loading = count === null;
+  const maskKey = todayStarMask(starDates, today).map(Boolean).map(Number).join('');
+  const mode = constellationMotionMode(animate && !loading, map.complete, [...maskKey].map(v => v === '1'));
+  useEffect(() => {
+    if (!animate) return;
+    setToday(localDateKey());
+    const timer = setInterval(() => setToday(localDateKey()), 60000);
+    return () => clearInterval(timer);
+  }, [animate]);
+  useEffect(() => {
+    lights.forEach(light => { light.stopAnimation(); light.setValue(0); });
+    if (mode === 'still') return;
+    const rise = (light: Animated.Value, toValue: number, duration: number) => Animated.timing(light, {
+      toValue, duration, easing: Easing.inOut(Easing.sin), useNativeDriver: true, isInteraction: false,
+    });
+    const flash = (light: Animated.Value) => Animated.sequence([rise(light, 1, 420), rise(light, 0, 620)]);
+    const animation = mode === 'complete'
+      ? Animated.loop(Animated.sequence([
+        Animated.delay(500),
+        ...lights.map(flash),
+        Animated.parallel(lights.map(flash)),
+        Animated.delay(1800),
+      ]))
+      : Animated.parallel(lights.map((light, i) => maskKey[i] === '1'
+        ? Animated.sequence([Animated.delay(i * 160), Animated.loop(Animated.sequence([rise(light, 1, 850), rise(light, 0, 1050), Animated.delay(350)]))])
+        : Animated.delay(0)));
+    animation.start();
+    return () => { animation.stop(); lights.forEach(light => { light.stopAnimation(); light.setValue(0); }); };
+  }, [mode, maskKey, lights]);
   return <View style={styles.container} accessible accessibilityLabel={loading ? '꿈 별자리를 불러오는 중입니다' : `나의 꿈 별자리. ${map.name}, ${map.lit}/6개. 꿈 ${map.total}개, 완성한 별자리 ${map.completed}개${map.complete ? '. 별자리를 완성했어요' : ''}`}>
     <View style={styles.header}>
       <View style={styles.heading}><Text style={styles.title}>나의 꿈 별자리</Text><Text style={styles.name}>{loading ? '별빛을 불러오는 중' : map.name}</Text></View>
@@ -27,7 +58,10 @@ function DreamConstellation({ count }: { count: number | null }) {
         {map.points.map(([x, y], i) => {
           const lit = !loading && i < map.lit;
           return <View key={`star-${i}`} style={[styles.node, { left: `${x}%`, top: `${y}%` }]}>
-            {lit ? <><View style={styles.halo} /><View style={styles.innerHalo} /><MaterialCommunityIcons name="star-four-points" size={i === map.lit - 1 ? 25 : 20} color="#FFE5A3" /></> : <View style={styles.unlit} />}
+            {lit ? <Animated.View style={[styles.light, {
+              opacity: lights[i].interpolate({ inputRange: [0, 1], outputRange: [mode === 'complete' || (mode === 'today' && maskKey[i] === '1') ? 0.3 : 1, 1] }),
+              transform: [{ scale: lights[i].interpolate({ inputRange: [0, 1], outputRange: [1, 1.24] }) }],
+            }]}><Animated.View style={[styles.halo, { opacity: lights[i].interpolate({ inputRange: [0, 1], outputRange: [0.07, 0.3] }) }]} /><View style={styles.innerHalo} /><MaterialCommunityIcons name="star-four-points" size={i === map.lit - 1 ? 25 : 20} color="#FFE5A3" /></Animated.View> : <View style={styles.unlit} />}
           </View>;
         })}
       </View>
@@ -53,6 +87,7 @@ const styles = StyleSheet.create({
   line: { position: 'absolute' },
   node: { position: 'absolute', width: 28, height: 28, marginLeft: -14, marginTop: -14, justifyContent: 'center', alignItems: 'center' },
   halo: { position: 'absolute', width: 36, height: 36, borderRadius: 18, backgroundColor: '#E9CB82', opacity: 0.07 },
+  light: { width: 28, height: 28, alignItems: 'center', justifyContent: 'center' },
   innerHalo: { position: 'absolute', width: 24, height: 24, borderRadius: 12, backgroundColor: '#E9CB82', opacity: 0.12 },
   unlit: { width: 7, height: 7, borderRadius: 4, borderWidth: 1, borderColor: '#65809D', backgroundColor: '#15263E' },
   footerRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: 5 },
