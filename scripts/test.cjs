@@ -173,6 +173,29 @@ async function main() {
   assert.equal(getConstellationProgress(13).stars, 1);
   assert.equal(getConstellationProgress(-1).total, 0);
   assert.equal(getConstellationProgress(NaN).total, 0);
+  const { getConstellationMap, constellationLine } = load(root + '/src/utils/constellation.ts');
+  assert.equal(getConstellationMap(null).lit, 0);
+  assert.equal(getConstellationMap(-1).total, 0);
+  assert.equal(getConstellationMap(NaN).total, 0);
+  assert.equal(getConstellationMap(5).lit, 5);
+  assert.equal(getConstellationMap(6).lit, 6, 'completed constellation stays visible');
+  assert.equal(getConstellationMap(6).complete, true);
+  assert.equal(getConstellationMap(6).chapter, 1);
+  assert.equal(getConstellationMap(7).chapter, 2);
+  assert.equal(getConstellationMap(7).lit, 1);
+  assert.notEqual(getConstellationMap(7).name, getConstellationMap(6).name);
+  assert.equal(getConstellationMap(24).lit, 6);
+  assert.equal(getConstellationMap(25).name, getConstellationMap(1).name);
+  for (const count of [0, 1, 6, 7, 12, 13, 18, 24, 25]) {
+    const map = getConstellationMap(count);
+    assert.equal(map.points.length, 6);
+    for (const [x, y] of map.points) assert.ok(x > 0 && x < 100 && y > 0 && y < 100);
+    for (const width of [160, 230, 384]) {
+      const line = constellationLine(map.points[0], map.points[1], width, 138);
+      assert.ok(Number.isFinite(line.width) && line.width > 0);
+      assert.ok(Math.abs((line.left + line.width / 2) - (map.points[0][0] + map.points[1][0]) * width / 200) < 0.001);
+    }
+  }
   const reactNativeVersion = require(root + '/node_modules/react-native/package.json').version;
   const podLock = fs.readFileSync(root + '/ios/Podfile.lock', 'utf8');
   assert.equal(podLock.match(/^  - hermes-engine \(([^)]+)\):/m)?.[1], reactNativeVersion,
