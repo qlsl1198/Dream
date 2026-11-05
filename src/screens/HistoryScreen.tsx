@@ -17,9 +17,10 @@ import { DreamStorage, DreamRecord } from '../services/DreamStorage';
 import {
   formatRelativeDate,
   getDreamTypeLabel,
-  getEmotionEmoji,
+  getEmotionLabel,
 } from '../utils/dreamHelpers';
 import DreamDetailModal from './DreamDetailModal';
+import EmotionIcon from '../components/EmotionIcon';
 import { LinearGradient } from 'expo-linear-gradient';
 import DreamPageHeader, { DreamEmptyState } from '../components/DreamPageHeader';
 import { dreamLayout } from '../constants/DreamDesign';
@@ -82,7 +83,7 @@ export default function HistoryScreen() {
       onPress={() => setSelected(item)}
       activeOpacity={0.75}
       accessibilityRole="button"
-      accessibilityLabel={`${formatRelativeDate(item.date)} 꿈 기록 열기, ${item.content.slice(0, 40)}`}
+      accessibilityLabel={`${formatRelativeDate(item.date)} 꿈 기록 열기, 감정 ${getEmotionLabel(item.emotion)}, ${item.content.slice(0, 40)}`}
     >
       <ImageBackground source={getDreamArtwork(item.content, item.matchedSymbols)} style={styles.cover}>
         <LinearGradient colors={['transparent', '#0B1426CC']} style={styles.coverShade}>
@@ -93,7 +94,7 @@ export default function HistoryScreen() {
       <View style={styles.dreamHeader}>
         <View style={styles.dreamInfo}>
           <Text style={[styles.dreamDate, { color: colors.text }]}>{formatRelativeDate(item.date)}</Text>
-          <Text style={styles.dreamEmotion}>{getEmotionEmoji(item.emotion)}</Text>
+          <EmotionIcon emotion={item.emotion} size={20} />
           {item.isFavorite && <Ionicons name="heart" size={14} color={colors.error} />}
         </View>
         <Text style={[styles.typeLabel, { color: colors.textSecondary }]}>
@@ -257,7 +258,6 @@ const styles = StyleSheet.create({
   },
   dreamInfo: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   dreamDate: { fontSize: 14, fontWeight: '600', marginRight: 4 },
-  dreamEmotion: { fontSize: 16 },
   typeLabel: { fontSize: 12 },
   dreamContent: { fontSize: 14, lineHeight: 20, marginBottom: 12 },
   dreamFooter: {

@@ -14,11 +14,11 @@ import { useTheme } from '../contexts/ThemeContext';
 import { DreamRecord, DreamStorage } from '../services/DreamStorage';
 import { ShareService } from '../services/ShareService';
 import DreamSceneCard from '../components/DreamSceneCard';
+import EmotionIcon from '../components/EmotionIcon';
 import { dreamLayout } from '../constants/DreamDesign';
 import {
   formatFullDate,
   getDreamTypeLabel,
-  getEmotionEmoji,
   getEmotionLabel,
 } from '../utils/dreamHelpers';
 
@@ -89,7 +89,7 @@ export default function DreamDetailModal({ dream, visible, onClose, onChanged }:
           <DreamSceneCard content={dream.content} symbols={dream.matchedSymbols} />
 
           <View style={styles.metaRow}>
-            <Text style={styles.metaEmoji}>{getEmotionEmoji(dream.emotion)}</Text>
+            <EmotionIcon emotion={dream.emotion} size={22} />
             <Text style={[styles.metaText, { color: colors.text }]}>{getEmotionLabel(dream.emotion)}</Text>
             {dream.dreamType ? (
               <View style={[styles.chip, { backgroundColor: colors.primary + '22' }]}>
@@ -192,7 +192,6 @@ const styles = StyleSheet.create({
   body: { padding: 20, paddingBottom: 40 },
   date: { fontSize: 13, marginBottom: 10 },
   metaRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginBottom: 12 },
-  metaEmoji: { fontSize: 20 },
   metaText: { fontSize: 15, fontWeight: '600' },
   chip: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
   scoreRow: { flexDirection: 'row', gap: 16, marginBottom: 12 },

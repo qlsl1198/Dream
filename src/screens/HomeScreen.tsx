@@ -9,11 +9,14 @@ import {
   Alert,
   SafeAreaView,
   Animated,
+  useWindowDimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useIsFocused } from '@react-navigation/native';
 import { useCallback } from 'react';
 import DreamCompanion from '../components/DreamCompanion';
+import { getConstellationStarDates } from '../utils/constellation';
+import EmotionIcon from '../components/EmotionIcon';
 import DreamSceneCard from '../components/DreamSceneCard';
 import { dreamLayout } from '../constants/DreamDesign';
 import { useTheme } from '../contexts/ThemeContext';
@@ -28,6 +31,8 @@ import { localDateKey } from '../utils/dreamHelpers';
 
 export default function HomeScreen() {
   const { colors } = useTheme();
+  const focused = useIsFocused();
+  const compactHeader = useWindowDimensions().width < 360;
   const [dreamContent, setDreamContent] = useState('');
   const [emotion, setEmotion] = useState('');
   const [dreamType, setDreamType] = useState<DreamTypeKey>('normal');
@@ -40,6 +45,7 @@ export default function HomeScreen() {
   const [analysisResult, setAnalysisResult] = useState<DreamAnalysisResult | null>(null);
   const [currentDreamId, setCurrentDreamId] = useState<string | null>(null);
   const [dreamCount, setDreamCount] = useState<number | null>(null);
+  const [starDates, setStarDates] = useState('');
   const [resultScene, setResultScene] = useState<{ content: string; symbols: string[] } | null>(null);
   const [aiStatus, setAIStatus] = useState('온디바이스 AI 확인 중');
   const busy = useRef(false);
@@ -49,7 +55,7 @@ export default function HomeScreen() {
 
   useFocusEffect(useCallback(() => {
     let active = true;
-    DreamStorage.getDreams().then(dreams => { if (active) setDreamCount(dreams.length); })
+    DreamStorage.getDreams().then(dreams => { if (active) { setDreamCount(dreams.length); setStarDates(getConstellationStarDates(dreams)); } })
       .catch(() => { if (active) setDreamCount(null); });
     return () => { active = false; };
   }, []));
@@ -148,7 +154,7 @@ export default function HomeScreen() {
     };
     await DreamStorage.saveDream(record);
     setResultScene({ content: record.content, symbols: result.matchedSymbols });
-    DreamStorage.getDreams().then(dreams => setDreamCount(dreams.length)).catch(() => setDreamCount(null));
+    DreamStorage.getDreams().then(dreams => { setDreamCount(dreams.length); setStarDates(getConstellationStarDates(dreams)); }).catch(() => setDreamCount(null));
     setCurrentDreamId(dreamId);
     setAnalysisResult(result);
     StreakService.getStreakInfo().then(setStreak).catch(() => {});
@@ -182,20 +188,24 @@ export default function HomeScreen() {
       <Text style={[styles.scoreLabel, { color: colors.text }]}>
         {label} · {value}/10
       </Text>
-      <View style={styles.scoreRow}>
+      <View accessibilityRole="radiogroup" accessibilityLabel={label} style={styles.scoreRow}>
         {[2, 4, 6, 8, 10].map((n) => (
           <TouchableOpacity
             key={n}
+            accessibilityRole="radio"
+            accessibilityLabel={`${label} ${n}점`}
+            accessibilityState={{ checked: value === n }}
+            aria-checked={value === n}
             style={[
               styles.scoreChip,
               {
-                backgroundColor: value === n ? colors.primary : colors.surface,
-                borderColor: value === n ? colors.primary : colors.border,
+                backgroundColor: value === n ? colors.accent : colors.surface,
+                borderColor: value === n ? colors.accent : colors.border,
               },
             ]}
             onPress={() => onChange(n)}
           >
-            <Text style={{ color: value === n ? '#fff' : colors.text, fontWeight: '600', fontSize: 12 }}>{n}</Text>
+            <Text style={{ color: value === n ? colors.onAccent : colors.text, fontWeight: '600', fontSize: 12 }}>{n}</Text>
           </TouchableOpacity>
         ))}
       </View>
@@ -206,25 +216,20 @@ export default function HomeScreen() {
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
         <Animated.View style={[dreamLayout.body, { opacity: fadeAnim }]}>
-          <View style={styles.topHeader}>
-            <View style={{ flex: 1 }}>
+          <View style={[styles.topHeader, compactHeader && styles.compactHeader]}>
+            <View style={compactHeader ? { width: '100%' } : { flex: 1 }}>
               <Text style={[styles.brand, { color: colors.accent }]}>{APP_CONFIG.name}</Text>
               <Text style={[styles.heading, { color: colors.text }]}>오늘의 꿈을 남겨보세요</Text>
             </View>
             {streak && (
               <View style={[styles.streakBadge, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                <Ionicons name="flame" size={16} color={colors.warning} />
+                <Ionicons name="flame-outline" size={16} color={colors.accent} />
                 <Text style={[styles.streakText, { color: colors.text }]}>{streak.currentStreak}일</Text>
               </View>
             )}
           </View>
 
-          <DreamCompanion count={dreamCount} busy={isAnalyzing} justSaved={analysisResult !== null} />
-
-          <View accessibilityLiveRegion="polite" style={[styles.offlineBanner, { backgroundColor: colors.surface }]}>
-            <Ionicons name="shield-checkmark-outline" size={16} color={colors.accent} />
-            <Text style={[styles.offlineText, { color: colors.text, flex: 1 }]}>{aiStatus}</Text>
-          </View>
+          <DreamCompanion count={dreamCount} starDates={starDates} busy={isAnalyzing} justSaved={analysisResult !== null} emotion={emotion} focused={focused} />
 
           <Text style={[styles.sectionTitle, { color: colors.text }]}>꿈 내용</Text>
           <TextInput
@@ -255,6 +260,9 @@ export default function HomeScreen() {
             {EMOTIONS.map((item) => (
               <TouchableOpacity
                 key={item.key}
+                accessibilityRole="button"
+                accessibilityLabel={item.label}
+                accessibilityState={{ selected: emotion === item.key }}
                 style={[
                   styles.emotionButton,
                   {
@@ -264,7 +272,7 @@ export default function HomeScreen() {
                 ]}
                 onPress={() => setEmotion(item.key)}
               >
-                <Text style={styles.emotionEmoji}>{item.emoji}</Text>
+                <View style={styles.emotionIcon}><EmotionIcon emotion={item.key} size={24} color={emotion === item.key ? colors.onAccent : colors.accent} /></View>
                 <Text style={{ color: emotion === item.key ? colors.onAccent : colors.text, fontSize: 12, fontWeight: '600' }}>
                   {item.label}
                 </Text>
@@ -272,30 +280,33 @@ export default function HomeScreen() {
             ))}
           </View>
 
-          <TouchableOpacity style={styles.advancedToggle} onPress={() => setShowAdvanced(!showAdvanced)}>
-            <Text style={{ color: colors.primary, fontWeight: '600' }}>
+          <TouchableOpacity accessibilityRole="button" accessibilityState={{ expanded: showAdvanced }} style={styles.advancedToggle} onPress={() => setShowAdvanced(!showAdvanced)}>
+            <Text style={{ color: colors.textSecondary, fontWeight: '600' }}>
               {showAdvanced ? '상세 옵션 숨기기' : '상세 옵션 (유형·생생함·태그)'}
             </Text>
-            <Ionicons name={showAdvanced ? 'chevron-up' : 'chevron-down'} size={16} color={colors.primary} />
+            <Ionicons name={showAdvanced ? 'chevron-up' : 'chevron-down'} size={16} color={colors.textSecondary} />
           </TouchableOpacity>
 
           {showAdvanced && (
             <View style={[styles.advancedBox, { backgroundColor: colors.surface, borderColor: colors.border }]}>
               <Text style={[styles.sectionTitle, { color: colors.text, marginTop: 0 }]}>꿈 유형</Text>
-              <View style={styles.typeRow}>
+              <View accessibilityRole="radiogroup" accessibilityLabel="꿈 유형" style={styles.typeRow}>
                 {DREAM_TYPES.map((type) => (
                   <TouchableOpacity
                     key={type.key}
+                    accessibilityRole="radio"
+                    accessibilityState={{ checked: dreamType === type.key }}
+                    aria-checked={dreamType === type.key}
                     style={[
                       styles.typeChip,
                       {
-                        backgroundColor: dreamType === type.key ? colors.primary : colors.background,
-                        borderColor: dreamType === type.key ? colors.primary : colors.border,
+                        backgroundColor: dreamType === type.key ? colors.accent : colors.background,
+                        borderColor: dreamType === type.key ? colors.accent : colors.border,
                       },
                     ]}
                     onPress={() => setDreamType(type.key)}
                   >
-                    <Text style={{ color: dreamType === type.key ? '#fff' : colors.text, fontSize: 12, fontWeight: '600' }}>
+                    <Text style={{ color: dreamType === type.key ? colors.onAccent : colors.text, fontSize: 12, fontWeight: '600' }}>
                       {type.label}
                     </Text>
                   </TouchableOpacity>
@@ -323,7 +334,14 @@ export default function HomeScreen() {
             </View>
           )}
 
+          <View accessibilityLiveRegion="polite" style={styles.offlineBanner}>
+            <Ionicons name="shield-checkmark-outline" size={16} color={colors.accent} />
+            <Text style={[styles.offlineText, { color: colors.textSecondary, flex: 1 }]}>{aiStatus}</Text>
+          </View>
+
           <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityState={{ disabled: isAnalyzing, busy: isAnalyzing }}
             style={[styles.analyzeButton, { backgroundColor: colors.accent }, isAnalyzing && styles.disabled]}
             onPress={handleAnalyzeDream}
             disabled={isAnalyzing}
@@ -429,6 +447,7 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   scrollContent: { paddingBottom: 28 },
   topHeader: { flexDirection: 'row', gap: 12, justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 },
+  compactHeader: { flexDirection: 'column', gap: 8 },
   brand: { fontSize: 13, fontWeight: '700', letterSpacing: 1.5, marginBottom: 4 },
   heading: { fontSize: 24, lineHeight: 32, fontWeight: '700', letterSpacing: -0.5 },
   streakBadge: {
@@ -446,11 +465,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 8,
-    borderRadius: 14,
-    paddingHorizontal: 12,
-    marginBottom: 22,
+    gap: 8,
+    marginTop: 8,
   },
-  offlineText: { color: '#fff', fontSize: 12, fontWeight: '600', marginLeft: 6 },
+  offlineText: { fontSize: 12, lineHeight: 18 },
   sectionTitle: { fontSize: 17, fontWeight: '700', marginBottom: 12, marginTop: 12 },
   dreamInput: {
     borderWidth: 1,
@@ -470,8 +488,9 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     borderWidth: 1,
   },
-  emotionEmoji: { fontSize: 22, marginBottom: 4 },
+  emotionIcon: { marginBottom: 4 },
   advancedToggle: {
+    minHeight: 44,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -480,14 +499,17 @@ const styles = StyleSheet.create({
   },
   advancedBox: { borderWidth: 1, borderRadius: 14, padding: 14, marginBottom: 8 },
   typeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 },
-  typeChip: { borderWidth: 1, borderRadius: 16, paddingHorizontal: 12, paddingVertical: 8 },
+  typeChip: { borderWidth: 1, borderRadius: 16, paddingHorizontal: 12, paddingVertical: 8, minHeight: 44, justifyContent: 'center' },
   scoreBlock: { marginBottom: 10 },
   scoreLabel: { fontSize: 13, fontWeight: '600', marginBottom: 8 },
   scoreRow: { flexDirection: 'row', gap: 8 },
   scoreChip: {
+    flex: 1,
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
     borderWidth: 1,
     borderRadius: 10,
-    paddingHorizontal: 12,
     paddingVertical: 8,
   },
   tagInput: { borderWidth: 1, borderRadius: 12, padding: 12, fontSize: 14 },
