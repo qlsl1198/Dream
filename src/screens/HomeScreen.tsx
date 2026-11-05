@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useIsFocused } from '@react-navigation/native';
 import { useCallback } from 'react';
 import DreamCompanion from '../components/DreamCompanion';
+import { getConstellationStarDates } from '../utils/constellation';
 import EmotionIcon from '../components/EmotionIcon';
 import DreamSceneCard from '../components/DreamSceneCard';
 import { dreamLayout } from '../constants/DreamDesign';
@@ -44,6 +45,7 @@ export default function HomeScreen() {
   const [analysisResult, setAnalysisResult] = useState<DreamAnalysisResult | null>(null);
   const [currentDreamId, setCurrentDreamId] = useState<string | null>(null);
   const [dreamCount, setDreamCount] = useState<number | null>(null);
+  const [starDates, setStarDates] = useState('');
   const [resultScene, setResultScene] = useState<{ content: string; symbols: string[] } | null>(null);
   const [aiStatus, setAIStatus] = useState('온디바이스 AI 확인 중');
   const busy = useRef(false);
@@ -53,7 +55,7 @@ export default function HomeScreen() {
 
   useFocusEffect(useCallback(() => {
     let active = true;
-    DreamStorage.getDreams().then(dreams => { if (active) setDreamCount(dreams.length); })
+    DreamStorage.getDreams().then(dreams => { if (active) { setDreamCount(dreams.length); setStarDates(getConstellationStarDates(dreams)); } })
       .catch(() => { if (active) setDreamCount(null); });
     return () => { active = false; };
   }, []));
@@ -152,7 +154,7 @@ export default function HomeScreen() {
     };
     await DreamStorage.saveDream(record);
     setResultScene({ content: record.content, symbols: result.matchedSymbols });
-    DreamStorage.getDreams().then(dreams => setDreamCount(dreams.length)).catch(() => setDreamCount(null));
+    DreamStorage.getDreams().then(dreams => { setDreamCount(dreams.length); setStarDates(getConstellationStarDates(dreams)); }).catch(() => setDreamCount(null));
     setCurrentDreamId(dreamId);
     setAnalysisResult(result);
     StreakService.getStreakInfo().then(setStreak).catch(() => {});
@@ -223,7 +225,7 @@ export default function HomeScreen() {
             )}
           </View>
 
-          <DreamCompanion count={dreamCount} busy={isAnalyzing} justSaved={analysisResult !== null} emotion={emotion} focused={focused} />
+          <DreamCompanion count={dreamCount} starDates={starDates} busy={isAnalyzing} justSaved={analysisResult !== null} emotion={emotion} focused={focused} />
 
           <View accessibilityLiveRegion="polite" style={[styles.offlineBanner, { backgroundColor: colors.surface }]}>
             <Ionicons name="shield-checkmark-outline" size={16} color={colors.accent} />
