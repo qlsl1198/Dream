@@ -5,13 +5,13 @@ import { CompanionMood, getCompanionSpriteLocation } from '../utils/companionMoo
 // A single preloaded atlas avoids separate image requests on every mood change.
 const ATLASES = [require('../../assets/dream-world/mongi-emotions.png'), require('../../assets/dream-world/mongi-emotions-extra.png')];
 const ORIGINAL = require('../../assets/dream-world/mongi.png');
-export default function MongiSprite({ mood }: { mood: CompanionMood }) {
+export default function MongiSprite({ mood, compact = false }: { mood: CompanionMood; compact?: boolean }) {
   const [size, setSize] = useState(132);
   const [failed, setFailed] = useState([false, false]);
   const [ready, setReady] = useState([false, false]);
   const frame = getCompanionSpriteLocation(mood);
   const showAtlas = frame !== null && ready[frame.sheet] && !failed[frame.sheet];
-  return <View pointerEvents="none" accessible={false} style={styles.viewport}
+  return <View pointerEvents="none" accessible={false} style={[styles.viewport, compact && styles.compact]}
     onLayout={event => setSize(Math.max(1, Math.min(event.nativeEvent.layout.width, event.nativeEvent.layout.height)))}>
     <View style={{ width: size, height: size, overflow: 'hidden' }}>
       <Image source={ORIGINAL} accessible={false} fadeDuration={0} resizeMode="contain"
@@ -25,4 +25,7 @@ export default function MongiSprite({ mood }: { mood: CompanionMood }) {
     </View>
   </View>;
 }
-const styles = StyleSheet.create({ viewport: { width: '100%', height: 148, alignItems: 'center', justifyContent: 'center' } });
+const styles = StyleSheet.create({
+  viewport: { width: '100%', height: 148, alignItems: 'center', justifyContent: 'center' },
+  compact: { height: 104 },
+});

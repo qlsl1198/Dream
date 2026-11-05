@@ -83,7 +83,7 @@ export default function DreamCompanion({ count, starDates = '', busy, justSaved,
           <Animated.View style={{ transform: [{ translateY: ambient.interpolate({ inputRange: [0, 1], outputRange: [0, lift] }) },
             { rotate: ambient.interpolate({ inputRange: [0, 1], outputRange: [reaction.mood === 'thinking' ? '-3deg' : '-1deg', reaction.mood === 'thinking' ? '3deg' : '1deg'] }) },
             { scale: Animated.multiply(scale, ambient.interpolate({ inputRange: [0, 1], outputRange: [1, 1.025] })) }] }}>
-            <MongiSprite mood={reaction.mood} />
+            <MongiSprite mood={reaction.mood} compact />
           </Animated.View>
           <Animated.Text pointerEvents="none" accessible={false} style={[styles.sparkle, { opacity: pulse, transform: [{ translateY: pulse.interpolate({ inputRange: [0, 1], outputRange: [4, -8] }) }] }]}>✦</Animated.Text>
         </Pressable>
@@ -95,14 +95,14 @@ export default function DreamCompanion({ count, starDates = '', busy, justSaved,
 
 const styles = StyleSheet.create({
   container: { marginBottom: 20, borderRadius: 24, overflow: 'hidden', backgroundColor: '#101D33', borderWidth: 1, borderColor: '#304362' },
-  hero: { flexDirection: 'row', alignItems: 'center', padding: 20, minHeight: 166 },
-  copy: { flex: 1 },
+  hero: { flexDirection: 'row', alignItems: 'center', padding: 18, gap: 8, minHeight: 140 },
+  copy: { flex: 1, minWidth: 0 },
   eyebrow: { color: '#A8BCD9', fontSize: 9, fontWeight: '700', letterSpacing: 1.3 },
-  title: { color: '#FFF3D7', fontSize: 23, fontWeight: '700' },
-  mood: { color: '#E8CE96', fontSize: 10, marginTop: 8, fontWeight: '600' },
-  message: { color: '#DBE5F5', fontSize: 13, lineHeight: 21, marginTop: 10 },
-  tapHint: { color: '#A8BCD9', fontSize: 10, marginTop: 16 },
-  rabbitButton: { width: '38%', maxWidth: 180, minWidth: 92, minHeight: 140, justifyContent: 'center' },
+  title: { color: '#FFF3D7', fontSize: 20, lineHeight: 27, fontWeight: '700' },
+  mood: { color: '#E8CE96', fontSize: 11, marginTop: 4, fontWeight: '600' },
+  message: { color: '#DBE5F5', fontSize: 13, lineHeight: 20, marginTop: 6 },
+  tapHint: { color: '#A8BCD9', fontSize: 10, lineHeight: 16, marginTop: 8 },
+  rabbitButton: { width: '34%', maxWidth: 150, minWidth: 82, minHeight: 104, flexShrink: 0, justifyContent: 'center' },
   glow: { position: 'absolute', width: 94, height: 94, borderRadius: 47, backgroundColor: '#E8CE96', alignSelf: 'center' },
   sparkle: { position: 'absolute', right: 2, top: 16, color: '#F5D88C', fontSize: 22 },
 });
