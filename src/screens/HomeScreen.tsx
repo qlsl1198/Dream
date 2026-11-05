@@ -188,13 +188,13 @@ export default function HomeScreen() {
       <Text style={[styles.scoreLabel, { color: colors.text }]}>
         {label} · {value}/10
       </Text>
-      <View style={styles.scoreRow}>
+      <View accessibilityRole="radiogroup" accessibilityLabel={label} style={styles.scoreRow}>
         {[2, 4, 6, 8, 10].map((n) => (
           <TouchableOpacity
             key={n}
-            accessibilityRole="button"
+            accessibilityRole="radio"
             accessibilityLabel={`${label} ${n}점`}
-            accessibilityState={{ selected: value === n }}
+            accessibilityState={{ checked: value === n }}
             style={[
               styles.scoreChip,
               {
@@ -289,12 +289,12 @@ export default function HomeScreen() {
           {showAdvanced && (
             <View style={[styles.advancedBox, { backgroundColor: colors.surface, borderColor: colors.border }]}>
               <Text style={[styles.sectionTitle, { color: colors.text, marginTop: 0 }]}>꿈 유형</Text>
-              <View style={styles.typeRow}>
+              <View accessibilityRole="radiogroup" accessibilityLabel="꿈 유형" style={styles.typeRow}>
                 {DREAM_TYPES.map((type) => (
                   <TouchableOpacity
                     key={type.key}
-                    accessibilityRole="button"
-                    accessibilityState={{ selected: dreamType === type.key }}
+                    accessibilityRole="radio"
+                    accessibilityState={{ checked: dreamType === type.key }}
                     style={[
                       styles.typeChip,
                       {
