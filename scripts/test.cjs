@@ -173,7 +173,10 @@ async function main() {
   assert.equal(getConstellationProgress(13).stars, 1);
   assert.equal(getConstellationProgress(-1).total, 0);
   assert.equal(getConstellationProgress(NaN).total, 0);
-  const { getConstellationMap, constellationLine, getConstellationStarDates, todayStarMask, constellationMotionMode } = load(root + '/src/utils/constellation.ts');
+  const { getConstellationMap, constellationLine, getConstellationStarDates, todayStarMask, constellationMotionMode, CONSTELLATION_STAR_FIELD } = load(root + '/src/utils/constellation.ts');
+  assert.equal(CONSTELLATION_STAR_FIELD.length, 54);
+  assert.ok(CONSTELLATION_STAR_FIELD.every(s => s.x > 0 && s.x < 100 && s.y > 0 && s.y < 100 && s.opacity > 0 && s.opacity <= 1));
+  assert.ok(new Set(CONSTELLATION_STAR_FIELD.map(s => s.size)).size >= 3);
   const sampleStars = Array.from({ length: 7 }, (_, i) => ({ createdAt: new Date(2026, 10, i < 4 ? 4 : 5, 12, i).toISOString(), date: '2020-01-01' }));
   const sixDates = getConstellationStarDates(sampleStars.slice(0, 6).reverse());
   assert.deepEqual(todayStarMask(sixDates, '2026-11-05'), [false, false, false, false, true, true]);

@@ -7,6 +7,14 @@ const MAPS = [
   { name: '별꽃자리', points: [[50, 12], [72, 30], [68, 62], [50, 80], [28, 62], [28, 30]] },
 ] as const;
 
+// Stable, varied star field. No random re-rendering or simultaneous background blink.
+export const CONSTELLATION_STAR_FIELD = Array.from({ length: 54 }, (_, i) => {
+  const seed = (Math.imul(i + 17, 2654435761) >>> 0);
+  return { x: 2 + seed % 960 / 10, y: 3 + (seed >>> 10) % 920 / 10,
+    size: i % 11 === 0 ? 1.6 : i % 3 === 0 ? 1 : 0.65,
+    opacity: i % 11 === 0 ? 0.65 : 0.13 + (i % 5) * 0.065 };
+});
+
 export function getConstellationMap(count: number | null) {
   const total = count !== null && Number.isFinite(count) ? Math.max(0, Math.floor(count)) : 0;
   const complete = total > 0 && total % 6 === 0;
