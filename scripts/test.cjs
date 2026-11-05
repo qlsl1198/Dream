@@ -47,6 +47,17 @@ function load(file) {
 }
 
 async function main() {
+  const appVersion = JSON.parse(fs.readFileSync(root + '/app.json', 'utf8')).expo.version;
+  const pkg = JSON.parse(fs.readFileSync(root + '/package.json', 'utf8'));
+  const pkgLock = JSON.parse(fs.readFileSync(root + '/package-lock.json', 'utf8'));
+  assert.equal(pkg.version, appVersion);
+  assert.equal(pkgLock.version, appVersion);
+  assert.equal(pkgLock.packages[''].version, appVersion);
+  const nativeInfo = fs.readFileSync(root + '/ios/DreamInterpreterApp/Info.plist', 'utf8');
+  assert.equal(nativeInfo.match(/<key>CFBundleShortVersionString<\/key>\s*<string>([^<]+)<\/string>/)?.[1], appVersion);
+  const marketingVersions = [...fs.readFileSync(root + '/ios/DreamInterpreterApp.xcodeproj/project.pbxproj', 'utf8').matchAll(/MARKETING_VERSION = ([^;]+);/g)].map(m => m[1]);
+  assert.ok(marketingVersions.length >= 2 && marketingVersions.every(v => v === appVersion));
+  assert.equal(load(root + '/src/constants/AppConfig.ts').APP_CONFIG.version, appVersion);
   const appIcon = fs.readFileSync(root + '/assets/icon.png');
   assert.equal(appIcon.readUInt32BE(16), 1024);
   assert.equal(appIcon.readUInt32BE(20), 1024);
