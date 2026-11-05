@@ -195,6 +195,7 @@ export default function HomeScreen() {
             accessibilityRole="radio"
             accessibilityLabel={`${label} ${n}점`}
             accessibilityState={{ checked: value === n }}
+            aria-checked={value === n}
             style={[
               styles.scoreChip,
               {
@@ -295,6 +296,7 @@ export default function HomeScreen() {
                     key={type.key}
                     accessibilityRole="radio"
                     accessibilityState={{ checked: dreamType === type.key }}
+                    aria-checked={dreamType === type.key}
                     style={[
                       styles.typeChip,
                       {
