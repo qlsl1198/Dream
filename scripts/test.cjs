@@ -47,6 +47,105 @@ function load(file) {
 }
 
 async function main() {
+  const appVersion = JSON.parse(fs.readFileSync(root + '/app.json', 'utf8')).expo.version;
+  const pkg = JSON.parse(fs.readFileSync(root + '/package.json', 'utf8'));
+  const pkgLock = JSON.parse(fs.readFileSync(root + '/package-lock.json', 'utf8'));
+  assert.equal(pkg.version, appVersion);
+  assert.equal(pkgLock.version, appVersion);
+  assert.equal(pkgLock.packages[''].version, appVersion);
+  const nativeInfo = fs.readFileSync(root + '/ios/DreamInterpreterApp/Info.plist', 'utf8');
+  assert.equal(nativeInfo.match(/<key>CFBundleShortVersionString<\/key>\s*<string>([^<]+)<\/string>/)?.[1], appVersion);
+  const marketingVersions = [...fs.readFileSync(root + '/ios/DreamInterpreterApp.xcodeproj/project.pbxproj', 'utf8').matchAll(/MARKETING_VERSION = ([^;]+);/g)].map(m => m[1]);
+  assert.ok(marketingVersions.length >= 2 && marketingVersions.every(v => v === appVersion));
+  assert.equal(load(root + '/src/constants/AppConfig.ts').APP_CONFIG.version, appVersion);
+  const appIcon = fs.readFileSync(root + '/assets/icon.png');
+  assert.equal(appIcon.readUInt32BE(16), 1024);
+  assert.equal(appIcon.readUInt32BE(20), 1024);
+  assert.equal(appIcon[25], 2, 'App Store icon must be opaque RGB, no alpha channel');
+  assert.ok(appIcon.equals(fs.readFileSync(root + '/ios/DreamInterpreterApp/Images.xcassets/AppIcon.appiconset/App-Icon-1024x1024@1x.png')), 'Expo and native iOS icon stay identical');
+  const { getEmotionIconName, EMOTION_ICONS } = load(root + '/src/utils/emotionVisuals.ts');
+  const emotionGlyphs = require(root + '/node_modules/@expo/vector-icons/build/vendor/react-native-vector-icons/glyphmaps/MaterialCommunityIcons.json');
+  assert.equal(Object.keys(EMOTION_ICONS).length, 6);
+  assert.equal(new Set(Object.values(EMOTION_ICONS)).size, 6);
+  for (const [emotion, icon] of Object.entries(EMOTION_ICONS)) {
+    assert.ok(Object.hasOwn(emotionGlyphs, icon));
+    assert.equal(getEmotionIconName(emotion), icon);
+    assert.ok(icon.endsWith('-outline'));
+  }
+  assert.equal(getEmotionIconName('unknown'), EMOTION_ICONS.neutral);
+  assert.equal(getEmotionIconName('__proto__'), EMOTION_ICONS.neutral);
+  const { createDialoguePlayer, dialogueDelay } = load(root + '/src/utils/dialoguePlayer.ts');
+  const pending = new Map(); let timerId = 0; let completions = 0; const typed = [];
+  const schedule = callback => { const id = ++timerId; pending.set(id, callback); return id; };
+  const cancel = id => pending.delete(id);
+  const tick = () => { const [id, callback] = pending.entries().next().value; pending.delete(id); callback(); };
+  const player = createDialoguePlayer('몽이🌙!', value => typed.push(value), () => completions++, schedule, cancel);
+  player.start(); player.start(); assert.equal(pending.size, 1);
+  tick(); assert.equal(typed.at(-1), '몽');
+  tick(); assert.equal(typed.at(-1), '몽이');
+  tick(); assert.equal(typed.at(-1), '몽이🌙', 'surrogate pair stays intact');
+  assert.equal(player.reveal(), true); assert.equal(typed.at(-1), '몽이🌙!');
+  assert.equal(completions, 1); assert.equal(pending.size, 0);
+  assert.equal(player.reveal(), false); assert.equal(completions, 1);
+  player.start(); assert.equal(pending.size, 0);
+  const stopped = createDialoguePlayer('중단', () => {}, () => {}, schedule, cancel);
+  stopped.start(); stopped.stop(); assert.equal(pending.size, 0);
+  const natural = createDialoguePlayer('안녕', value => typed.push(value), () => completions++, schedule, cancel);
+  natural.start(); tick(); tick(); assert.equal(completions, 2); assert.equal(pending.size, 0);
+  const empty = createDialoguePlayer('', () => {}, () => completions++, schedule, cancel);
+  empty.start(); empty.start(); assert.equal(completions, 3);
+  assert.ok(dialogueDelay('.') > dialogueDelay('몽'));
+  assert.ok(dialogueDelay(',') > dialogueDelay('몽'));
+  const { OnboardingService } = load(root + '/src/services/OnboardingService.ts');
+  assert.equal(await OnboardingService.hasCompletedOnboarding(), false);
+  values.set('has_completed_onboarding', 'true');
+  assert.equal(await OnboardingService.hasCompletedOnboarding(), false, 'existing users see Mongi tutorial once');
+  await OnboardingService.completeOnboarding();
+  assert.equal(await OnboardingService.hasCompletedOnboarding(), true);
+  assert.equal(await OnboardingService.hasAcceptedPrivacy(), false, 'tutorial does not silently record privacy consent');
+  values.set('mongi_tutorial_version', 'old');
+  assert.equal(await OnboardingService.hasCompletedOnboarding(), false);
+  await OnboardingService.reset();
+  assert.equal(values.has('mongi_tutorial_version'), false);
+  const { MONGI_TUTORIAL } = load(root + '/src/data/mongiTutorial.ts');
+  assert.equal(MONGI_TUTORIAL.length, 5);
+  assert.equal(new Set(MONGI_TUTORIAL.map(step => step.id)).size, 5);
+  for (const step of MONGI_TUTORIAL) assert.ok(step.title && step.speech && step.detail && step.mood);
+  const { getCompanionReaction, getCompanionFrame, getCompanionSpriteLocation, canAnimateCompanion, COMPANION_FRAMES, TOUCH_MOODS } = load(root + '/src/utils/companionMood.ts');
+  assert.equal(getCompanionReaction({}).mood, 'idle');
+  assert.equal(getCompanionReaction({ emotion: 'joy' }).mood, 'happy');
+  assert.equal(getCompanionReaction({ emotion: 'neutral' }).mood, 'calm');
+  for (const [emotion, mood] of [['sadness', 'sad'], ['fear', 'worried'], ['anger', 'determined']]) assert.equal(getCompanionReaction({ emotion }).mood, mood);
+  assert.equal(getCompanionReaction({ emotion: 'surprise' }).mood, 'surprised');
+  assert.equal(getCompanionReaction({ emotion: 'unknown' }).mood, 'idle');
+  assert.equal(getCompanionReaction({ emotion: 'joy', interaction: 'calm' }).mood, 'calm');
+  assert.equal(getCompanionReaction({ celebrating: true, interaction: 'calm' }).mood, 'celebrate');
+  assert.equal(getCompanionReaction({ busy: true, celebrating: true, interaction: 'happy' }).mood, 'thinking');
+  assert.equal(getCompanionFrame('idle'), null);
+  // Idle must never briefly switch the entire body to the closed-eye artwork.
+  for (let i = 0; i < 100; i++) assert.equal(getCompanionFrame('idle'), null);
+  assert.deepEqual(Object.values(COMPANION_FRAMES).sort((a,b) => a-b), Array.from({length:12},(_,i) => i));
+  for (const mood of Object.keys(COMPANION_FRAMES)) assert.equal(getCompanionFrame(mood), COMPANION_FRAMES[mood]);
+  assert.equal(getCompanionSpriteLocation('idle'), null);
+  assert.deepEqual(getCompanionSpriteLocation('shy'), {sheet:1,column:0,row:0});
+  assert.deepEqual(getCompanionSpriteLocation('determined'), {sheet:1,column:2,row:1});
+  for (const mood of Object.keys(COMPANION_FRAMES)) {
+    const position = getCompanionSpriteLocation(mood);
+    assert.ok(position.sheet >= 0 && position.sheet < 2 && position.column < 3 && position.row < 2);
+    assert.equal(getCompanionReaction({interaction:mood}).mood, mood);
+    assert.ok(getCompanionReaction({interaction:mood}).label);
+  }
+  assert.equal(new Set(TOUCH_MOODS).size, 6);
+  assert.ok(TOUCH_MOODS.includes('shy') && TOUCH_MOODS.includes('curious') && TOUCH_MOODS.includes('sleepy'));
+  for (const name of ['mongi-emotions.png', 'mongi-emotions-extra.png']) {
+    const png = fs.readFileSync(root + '/assets/dream-world/' + name);
+    assert.equal(png.subarray(1,4).toString(), 'PNG');
+    assert.equal(png.readUInt32BE(16), 1536, 'three 512px sprite columns');
+    assert.equal(png.readUInt32BE(20), 1024, 'two 512px sprite rows');
+    assert.equal(png[25], 6, 'RGBA atlas with alpha');
+  }
+  assert.equal(canAnimateCompanion(false, true, true), true);
+  for (const args of [[true,true,true], [false,false,true], [false,true,false], [true,false,false]]) assert.equal(canAnimateCompanion(...args), false);
   const { DREAM_SYMBOLS, searchSymbols } = load(root + '/src/data/dreamSymbols.ts');
   const { getSymbolVisual, getSymbolColumns } = load(root + '/src/utils/symbolVisuals.ts');
   const glyphs = require(root + '/node_modules/@expo/vector-icons/build/vendor/react-native-vector-icons/glyphmaps/MaterialCommunityIcons.json');
@@ -68,12 +167,60 @@ async function main() {
   assert.equal(getDreamScene('나무가 많은 숲').id, 'forest');
   assert.equal(getDreamScene('', ['날개', '구름']).id, 'sky');
   assert.equal(getDreamScene('학교 가는 버스').id, 'city');
+  assert.equal(getDreamScene('집에서 고양이와 놀았다').id, 'cozy');
+  assert.equal(getDreamScene('괴물에게 쫓기며 도망쳤다').id, 'storm');
+  assert.equal(getDreamScene('하늘을 날아 구름을 만졌다', ['물', '바다', '호수']).id, 'sky', 'actual content wins over extracted symbols');
+  assert.equal(getDreamScene('계산에 집중했다. 별로 기억나지 않고 피아노 소리만 났다.').id, 'night');
+  assert.equal(getDreamScene('I was flying above a cloud').id, 'sky');
+  assert.equal(getDreamScene('carefully practiced piano').id, 'night', 'English car/cat must not match inside a word');
+  const artSource = fs.readFileSync(root + '/src/components/dreamArtwork.ts', 'utf8');
+  const sceneAssets = [...artSource.matchAll(/require\('([^']+\.png)'\)/g)].map(m => path.resolve(root + '/src/components', m[1]));
+  assert.equal(sceneAssets.length, 7);
+  assert.equal(new Set(sceneAssets).size, 7, 'each scene has its own illustration');
+  for (const asset of sceneAssets) assert.ok(fs.existsSync(asset), asset);
   assert.equal(getDreamScene('').id, 'night');
   assert.deepEqual(getConstellationProgress(0), { total: 0, chapter: 1, stars: 0, completed: 0 });
   assert.deepEqual(getConstellationProgress(6), { total: 6, chapter: 2, stars: 0, completed: 1 });
   assert.equal(getConstellationProgress(13).stars, 1);
   assert.equal(getConstellationProgress(-1).total, 0);
   assert.equal(getConstellationProgress(NaN).total, 0);
+  const { getConstellationMap, constellationLine, getConstellationStarDates, todayStarMask, constellationMotionMode, CONSTELLATION_STAR_FIELD } = load(root + '/src/utils/constellation.ts');
+  assert.equal(CONSTELLATION_STAR_FIELD.length, 54);
+  assert.ok(CONSTELLATION_STAR_FIELD.every(s => s.x > 0 && s.x < 100 && s.y > 0 && s.y < 100 && s.opacity > 0 && s.opacity <= 1));
+  assert.ok(new Set(CONSTELLATION_STAR_FIELD.map(s => s.size)).size >= 3);
+  const sampleStars = Array.from({ length: 7 }, (_, i) => ({ createdAt: new Date(2026, 10, i < 4 ? 4 : 5, 12, i).toISOString(), date: '2020-01-01' }));
+  const sixDates = getConstellationStarDates(sampleStars.slice(0, 6).reverse());
+  assert.deepEqual(todayStarMask(sixDates, '2026-11-05'), [false, false, false, false, true, true]);
+  assert.deepEqual(todayStarMask(getConstellationStarDates(sampleStars), '2026-11-05'), [true]);
+  assert.deepEqual(todayStarMask(sixDates, '2026-11-06'), [false, false, false, false, false, false]);
+  assert.deepEqual(todayStarMask('invalid', '2026-11-05'), [false]);
+  assert.deepEqual(todayStarMask(''), []);
+  assert.equal(constellationMotionMode(false, true, [true]), 'still');
+  assert.equal(constellationMotionMode(true, true, []), 'complete');
+  assert.equal(constellationMotionMode(true, false, [false, true]), 'today');
+  assert.equal(constellationMotionMode(true, false, [false]), 'still');
+  assert.equal(getConstellationMap(null).lit, 0);
+  assert.equal(getConstellationMap(-1).total, 0);
+  assert.equal(getConstellationMap(NaN).total, 0);
+  assert.equal(getConstellationMap(5).lit, 5);
+  assert.equal(getConstellationMap(6).lit, 6, 'completed constellation stays visible');
+  assert.equal(getConstellationMap(6).complete, true);
+  assert.equal(getConstellationMap(6).chapter, 1);
+  assert.equal(getConstellationMap(7).chapter, 2);
+  assert.equal(getConstellationMap(7).lit, 1);
+  assert.notEqual(getConstellationMap(7).name, getConstellationMap(6).name);
+  assert.equal(getConstellationMap(24).lit, 6);
+  assert.equal(getConstellationMap(25).name, getConstellationMap(1).name);
+  for (const count of [0, 1, 6, 7, 12, 13, 18, 24, 25]) {
+    const map = getConstellationMap(count);
+    assert.equal(map.points.length, 6);
+    for (const [x, y] of map.points) assert.ok(x > 0 && x < 100 && y > 0 && y < 100);
+    for (const width of [160, 230, 384]) {
+      const line = constellationLine(map.points[0], map.points[1], width, 138);
+      assert.ok(Number.isFinite(line.width) && line.width > 0);
+      assert.ok(Math.abs((line.left + line.width / 2) - (map.points[0][0] + map.points[1][0]) * width / 200) < 0.001);
+    }
+  }
   const reactNativeVersion = require(root + '/node_modules/react-native/package.json').version;
   const podLock = fs.readFileSync(root + '/ios/Podfile.lock', 'utf8');
   assert.equal(podLock.match(/^  - hermes-engine \(([^)]+)\):/m)?.[1], reactNativeVersion,
