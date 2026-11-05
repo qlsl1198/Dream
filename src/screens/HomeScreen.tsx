@@ -192,16 +192,19 @@ export default function HomeScreen() {
         {[2, 4, 6, 8, 10].map((n) => (
           <TouchableOpacity
             key={n}
+            accessibilityRole="button"
+            accessibilityLabel={`${label} ${n}점`}
+            accessibilityState={{ selected: value === n }}
             style={[
               styles.scoreChip,
               {
-                backgroundColor: value === n ? colors.primary : colors.surface,
-                borderColor: value === n ? colors.primary : colors.border,
+                backgroundColor: value === n ? colors.accent : colors.surface,
+                borderColor: value === n ? colors.accent : colors.border,
               },
             ]}
             onPress={() => onChange(n)}
           >
-            <Text style={{ color: value === n ? '#fff' : colors.text, fontWeight: '600', fontSize: 12 }}>{n}</Text>
+            <Text style={{ color: value === n ? colors.onAccent : colors.text, fontWeight: '600', fontSize: 12 }}>{n}</Text>
           </TouchableOpacity>
         ))}
       </View>
@@ -226,11 +229,6 @@ export default function HomeScreen() {
           </View>
 
           <DreamCompanion count={dreamCount} starDates={starDates} busy={isAnalyzing} justSaved={analysisResult !== null} emotion={emotion} focused={focused} />
-
-          <View accessibilityLiveRegion="polite" style={[styles.offlineBanner, { backgroundColor: colors.surface }]}>
-            <Ionicons name="shield-checkmark-outline" size={16} color={colors.accent} />
-            <Text style={[styles.offlineText, { color: colors.text, flex: 1 }]}>{aiStatus}</Text>
-          </View>
 
           <Text style={[styles.sectionTitle, { color: colors.text }]}>꿈 내용</Text>
           <TextInput
@@ -281,7 +279,7 @@ export default function HomeScreen() {
             ))}
           </View>
 
-          <TouchableOpacity style={styles.advancedToggle} onPress={() => setShowAdvanced(!showAdvanced)}>
+          <TouchableOpacity accessibilityRole="button" accessibilityState={{ expanded: showAdvanced }} style={styles.advancedToggle} onPress={() => setShowAdvanced(!showAdvanced)}>
             <Text style={{ color: colors.textSecondary, fontWeight: '600' }}>
               {showAdvanced ? '상세 옵션 숨기기' : '상세 옵션 (유형·생생함·태그)'}
             </Text>
@@ -295,16 +293,18 @@ export default function HomeScreen() {
                 {DREAM_TYPES.map((type) => (
                   <TouchableOpacity
                     key={type.key}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: dreamType === type.key }}
                     style={[
                       styles.typeChip,
                       {
-                        backgroundColor: dreamType === type.key ? colors.primary : colors.background,
-                        borderColor: dreamType === type.key ? colors.primary : colors.border,
+                        backgroundColor: dreamType === type.key ? colors.accent : colors.background,
+                        borderColor: dreamType === type.key ? colors.accent : colors.border,
                       },
                     ]}
                     onPress={() => setDreamType(type.key)}
                   >
-                    <Text style={{ color: dreamType === type.key ? '#fff' : colors.text, fontSize: 12, fontWeight: '600' }}>
+                    <Text style={{ color: dreamType === type.key ? colors.onAccent : colors.text, fontSize: 12, fontWeight: '600' }}>
                       {type.label}
                     </Text>
                   </TouchableOpacity>
@@ -332,7 +332,14 @@ export default function HomeScreen() {
             </View>
           )}
 
+          <View accessibilityLiveRegion="polite" style={styles.offlineBanner}>
+            <Ionicons name="shield-checkmark-outline" size={16} color={colors.accent} />
+            <Text style={[styles.offlineText, { color: colors.textSecondary, flex: 1 }]}>{aiStatus}</Text>
+          </View>
+
           <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityState={{ disabled: isAnalyzing, busy: isAnalyzing }}
             style={[styles.analyzeButton, { backgroundColor: colors.accent }, isAnalyzing && styles.disabled]}
             onPress={handleAnalyzeDream}
             disabled={isAnalyzing}
@@ -456,11 +463,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 8,
-    borderRadius: 14,
-    paddingHorizontal: 12,
-    marginBottom: 22,
+    gap: 8,
+    marginTop: 8,
   },
-  offlineText: { color: '#fff', fontSize: 12, fontWeight: '600', marginLeft: 6 },
+  offlineText: { fontSize: 12, lineHeight: 18 },
   sectionTitle: { fontSize: 17, fontWeight: '700', marginBottom: 12, marginTop: 12 },
   dreamInput: {
     borderWidth: 1,
@@ -482,6 +488,7 @@ const styles = StyleSheet.create({
   },
   emotionIcon: { marginBottom: 4 },
   advancedToggle: {
+    minHeight: 44,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -490,14 +497,17 @@ const styles = StyleSheet.create({
   },
   advancedBox: { borderWidth: 1, borderRadius: 14, padding: 14, marginBottom: 8 },
   typeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 },
-  typeChip: { borderWidth: 1, borderRadius: 16, paddingHorizontal: 12, paddingVertical: 8 },
+  typeChip: { borderWidth: 1, borderRadius: 16, paddingHorizontal: 12, paddingVertical: 8, minHeight: 44, justifyContent: 'center' },
   scoreBlock: { marginBottom: 10 },
   scoreLabel: { fontSize: 13, fontWeight: '600', marginBottom: 8 },
   scoreRow: { flexDirection: 'row', gap: 8 },
   scoreChip: {
+    flex: 1,
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
     borderWidth: 1,
     borderRadius: 10,
-    paddingHorizontal: 12,
     paddingVertical: 8,
   },
   tagInput: { borderWidth: 1, borderRadius: 12, padding: 12, fontSize: 14 },
