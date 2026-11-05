@@ -156,6 +156,17 @@ async function main() {
   assert.equal(getDreamScene('나무가 많은 숲').id, 'forest');
   assert.equal(getDreamScene('', ['날개', '구름']).id, 'sky');
   assert.equal(getDreamScene('학교 가는 버스').id, 'city');
+  assert.equal(getDreamScene('집에서 고양이와 놀았다').id, 'cozy');
+  assert.equal(getDreamScene('괴물에게 쫓기며 도망쳤다').id, 'storm');
+  assert.equal(getDreamScene('하늘을 날아 구름을 만졌다', ['물', '바다', '호수']).id, 'sky', 'actual content wins over extracted symbols');
+  assert.equal(getDreamScene('계산에 집중했다. 별로 기억나지 않고 피아노 소리만 났다.').id, 'night');
+  assert.equal(getDreamScene('I was flying above a cloud').id, 'sky');
+  assert.equal(getDreamScene('carefully practiced piano').id, 'night', 'English car/cat must not match inside a word');
+  const artSource = fs.readFileSync(root + '/src/components/dreamArtwork.ts', 'utf8');
+  const sceneAssets = [...artSource.matchAll(/require\('([^']+\.png)'\)/g)].map(m => path.resolve(root + '/src/components', m[1]));
+  assert.equal(sceneAssets.length, 7);
+  assert.equal(new Set(sceneAssets).size, 7, 'each scene has its own illustration');
+  for (const asset of sceneAssets) assert.ok(fs.existsSync(asset), asset);
   assert.equal(getDreamScene('').id, 'night');
   assert.deepEqual(getConstellationProgress(0), { total: 0, chapter: 1, stars: 0, completed: 0 });
   assert.deepEqual(getConstellationProgress(6), { total: 6, chapter: 2, stars: 0, completed: 1 });
