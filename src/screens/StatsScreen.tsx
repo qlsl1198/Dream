@@ -167,9 +167,13 @@ export default function StatsScreen() {
           </View>
           <View style={[styles.statCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <Text style={[styles.statValue, { color: colors.text }]}>{stats.dreamFrequency.toFixed(1)}</Text>
-            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>주간 빈도</Text>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>주당 환산(회)</Text>
           </View>
         </View>
+
+        <Text style={{ color: colors.textSecondary, fontSize: 12, lineHeight: 19, marginBottom: 20 }}>
+          주당 환산은 선택 기간의 첫 기록부터 지금까지의 빈도를 7일 기준으로 환산한 값이에요. 참고 지수는 해석의 정확도를 뜻하지 않아요.
+        </Text>
 
         <View style={[styles.chartContainer, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <Text style={[styles.chartTitle, { color: colors.text }]}>감정 분포</Text>
