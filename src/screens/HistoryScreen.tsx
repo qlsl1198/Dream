@@ -110,19 +110,19 @@ export default function HistoryScreen() {
         <View style={styles.confidenceContainer}>
           <Ionicons name="analytics-outline" size={14} color={colors.primary} />
           <Text style={[styles.confidenceText, { color: colors.textSecondary }]}>
-            해석 참고 {Math.round(item.confidence * 100)}%
+            {item.interpretation ? `해석 참고 ${Math.round(item.confidence * 100)}%` : '기록만 저장됨'}
           </Text>
         </View>
         {item.matchedSymbols && item.matchedSymbols.length > 0 ? (
           <Text style={[styles.symbolHint, { color: colors.accent }]} numberOfLines={1}>
             {item.matchedSymbols.slice(0, 2).join(' · ')}
           </Text>
-        ) : (
+        ) : item.interpretation ? (
           <View style={styles.interpretationBadge}>
             <Ionicons name="checkmark-circle" size={14} color={colors.success} />
             <Text style={[styles.interpretationText, { color: colors.success }]}>해석 완료</Text>
           </View>
-        )}
+        ) : null}
       </View>
       </View>
     </TouchableOpacity>

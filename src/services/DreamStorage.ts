@@ -28,12 +28,14 @@ export interface DreamRecord {
 const DREAMS_KEY = 'dream_records';
 
 export class DreamStorage {
-  static async saveDream(dream: DreamRecord): Promise<void> {
+  static async saveDream(dream: DreamRecord, clearDraft = false): Promise<void> {
     return withStorageLock(async () => {
     try {
       const existingDreams = await this.getDreams();
       const updatedDreams = [dream, ...existingDreams.filter((d) => d.id !== dream.id)];
-      await AsyncStorage.setItem(DREAMS_KEY, JSON.stringify(updatedDreams));
+      const serialized = JSON.stringify(updatedDreams);
+      if (clearDraft) await AsyncStorage.multiSet([[DREAMS_KEY, serialized], ['dream_draft', '']]);
+      else await AsyncStorage.setItem(DREAMS_KEY, serialized);
     } catch (error) {
       console.error('꿈 저장 오류:', error);
       throw new Error('꿈을 저장하는 중 오류가 발생했습니다.');

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef, useState } from 'react';
 import {
   Modal,
   View,
@@ -13,6 +13,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../contexts/ThemeContext';
 import { DreamRecord, DreamStorage } from '../services/DreamStorage';
 import { ShareService } from '../services/ShareService';
+import { LocalAIService } from '../services/LocalAIService';
+import { dreamInterpreter } from '../services/DreamInterpreter';
+import { APP_CONFIG } from '../constants/AppConfig';
 import DreamSceneCard from '../components/DreamSceneCard';
 import EmotionIcon from '../components/EmotionIcon';
 import { dreamLayout } from '../constants/DreamDesign';
@@ -29,10 +32,41 @@ interface Props {
   onChanged?: () => void;
 }
 
-export default function DreamDetailModal({ dream, visible, onClose, onChanged }: Props) {
+export default function DreamDetailModal({ dream: initial, visible, onClose, onChanged }: Props) {
   const { colors } = useTheme();
+  const [updated, setUpdated] = useState<DreamRecord | null>(null);
+  const [analyzing, setAnalyzing] = useState(false);
+  const analysisLock = useRef(false);
+  const dream = initial && updated?.id === initial.id && !initial.interpretation ? updated : initial;
 
   if (!dream) return null;
+
+  const analyzeSavedDream = async () => {
+    if (analysisLock.current) return;
+    if (dream.content.trim().length < APP_CONFIG.minDreamLength) {
+      Alert.alert('꿈 내용이 짧아요', `해석하려면 ${APP_CONFIG.minDreamLength}자 이상의 기록이 필요해요.`);
+      return;
+    }
+    analysisLock.current = true;
+    setAnalyzing(true);
+    try {
+      const status = await LocalAIService.getStatus();
+      const result = await dreamInterpreter.analyzeDream(dream.content, dream.emotion, !status.available);
+      const saved = await DreamStorage.updateDream(dream.id, {
+        interpretation: result.interpretation, confidence: result.confidence,
+        recommendations: result.recommendations, themes: result.themes, matchedSymbols: result.matchedSymbols,
+      });
+      if (saved) {
+        setUpdated(saved);
+        onChanged?.();
+      }
+    } catch {
+      Alert.alert('해석하지 못했어요', '꿈 기록은 그대로 남아 있어요.');
+    } finally {
+      analysisLock.current = false;
+      setAnalyzing(false);
+    }
+  };
 
   const toggleFavorite = async () => {
     await DreamStorage.toggleFavorite(dream.id);
@@ -98,11 +132,11 @@ export default function DreamDetailModal({ dream, visible, onClose, onChanged }:
                 </Text>
               </View>
             ) : null}
-            <View style={[styles.chip, { backgroundColor: colors.success + '22' }]}>
+            {dream.interpretation ? <View style={[styles.chip, { backgroundColor: colors.success + '22' }]}>
               <Text style={{ color: colors.success, fontSize: 12, fontWeight: '600' }}>
                 해석 참고 지수 {Math.round(dream.confidence * 100)}%
               </Text>
-            </View>
+            </View> : null}
           </View>
 
           {(dream.vividness || dream.sleepQuality) && (
@@ -131,7 +165,12 @@ export default function DreamDetailModal({ dream, visible, onClose, onChanged }:
 
           <Text style={[styles.sectionTitle, { color: colors.text }]}>해석</Text>
           <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            <Text style={[styles.content, { color: colors.text }]}>{dream.interpretation}</Text>
+            {dream.interpretation ? <Text style={[styles.content, { color: colors.text }]}>{dream.interpretation}</Text> : (
+              <TouchableOpacity accessibilityRole="button" accessibilityState={{ busy: analyzing, disabled: analyzing }}
+                disabled={analyzing} onPress={analyzeSavedDream} style={{ minHeight: 44, justifyContent: 'center' }}>
+                <Text style={{ color: colors.accent, fontWeight: '700' }}>{analyzing ? '기기에서 해석 중…' : '이 꿈 해석하기'}</Text>
+              </TouchableOpacity>
+            )}
           </View>
 
           {dream.matchedSymbols && dream.matchedSymbols.length > 0 && (
