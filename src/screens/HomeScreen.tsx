@@ -18,6 +18,8 @@ import DreamCompanion from '../components/DreamCompanion';
 import { getConstellationStarDates } from '../utils/constellation';
 import EmotionIcon from '../components/EmotionIcon';
 import DreamSceneCard from '../components/DreamSceneCard';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { withStorageLock } from '../services/StorageQueue';
 import { dreamLayout } from '../constants/DreamDesign';
 import { useTheme } from '../contexts/ThemeContext';
 import { DreamStorage, DreamRecord } from '../services/DreamStorage';
@@ -34,6 +36,7 @@ export default function HomeScreen() {
   const focused = useIsFocused();
   const compactHeader = useWindowDimensions().width < 360;
   const [dreamContent, setDreamContent] = useState('');
+  const [draftReady, setDraftReady] = useState(false);
   const [emotion, setEmotion] = useState('');
   const [dreamType, setDreamType] = useState<DreamTypeKey>('normal');
   const [vividness, setVividness] = useState(5);
@@ -52,6 +55,23 @@ export default function HomeScreen() {
   const progressTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const [streak, setStreak] = useState<StreakInfo | null>(null);
   const [fadeAnim] = useState(new Animated.Value(0));
+
+  useFocusEffect(useCallback(() => {
+    let active = true;
+    setDraftReady(false);
+    withStorageLock(() => AsyncStorage.getItem('dream_draft')).then(value => {
+      if (active) setDreamContent((value ?? '').slice(0, APP_CONFIG.maxDreamLength));
+    }).catch(() => {
+      if (active) Alert.alert('임시 기록을 불러오지 못했어요');
+    }).finally(() => { if (active) setDraftReady(true); });
+    return () => { active = false; };
+  }, []));
+
+  const changeDraft = (value: string) => {
+    setDreamContent(value);
+    void withStorageLock(() => value ? AsyncStorage.setItem('dream_draft', value) : AsyncStorage.removeItem('dream_draft'))
+      .catch(() => Alert.alert('임시 저장 실패', '입력 내용은 화면에 남아 있어요.'));
+  };
 
   useFocusEffect(useCallback(() => {
     let active = true;
@@ -82,7 +102,7 @@ export default function HomeScreen() {
   };
 
   const handleAnalyzeDream = async () => {
-    if (busy.current) return;
+    if (busy.current || !draftReady) return;
     if (dreamContent.trim().length < APP_CONFIG.minDreamLength) {
       Alert.alert('꿈 내용', `꿈 내용을 ${APP_CONFIG.minDreamLength}자 이상 입력해주세요.`);
       return;
@@ -132,7 +152,7 @@ export default function HomeScreen() {
     }
   };
 
-  const saveAndShowResult = async (result: DreamAnalysisResult) => {
+  const saveAndShowResult = async (result?: DreamAnalysisResult) => {
     const now = new Date();
     const dreamId = `${now.getTime()}`;
     const tags = tagsInput.split(',').map((tag) => tag.trim()).filter(Boolean).slice(0, 10);
@@ -140,24 +160,45 @@ export default function HomeScreen() {
       id: dreamId,
       content: dreamContent.trim(),
       emotion,
-      interpretation: result.interpretation,
+      interpretation: result?.interpretation ?? '',
       date: localDateKey(now),
       createdAt: now.toISOString(),
-      confidence: result.confidence,
-      recommendations: result.recommendations,
-      themes: result.themes,
-      matchedSymbols: result.matchedSymbols,
+      confidence: result?.confidence ?? 0,
+      recommendations: result?.recommendations,
+      themes: result?.themes,
+      matchedSymbols: result?.matchedSymbols,
       vividness,
       sleepQuality,
       dreamType,
       tags,
     };
-    await DreamStorage.saveDream(record);
-    setResultScene({ content: record.content, symbols: result.matchedSymbols });
+    await DreamStorage.saveDream(record, true);
+    setVividness(5);
+    setSleepQuality(5);
+    setDreamType('normal');
+    setResultScene(result ? { content: record.content, symbols: result.matchedSymbols } : null);
     DreamStorage.getDreams().then(dreams => { setDreamCount(dreams.length); setStarDates(getConstellationStarDates(dreams)); }).catch(() => setDreamCount(null));
     setCurrentDreamId(dreamId);
-    setAnalysisResult(result);
+    setAnalysisResult(result ?? null);
     StreakService.getStreakInfo().then(setStreak).catch(() => {});
+  };
+
+  const handleQuickSave = async () => {
+    if (busy.current || !draftReady || !dreamContent.trim()) return;
+    busy.current = true;
+    setIsAnalyzing(true);
+    try {
+      await saveAndShowResult();
+      setDreamContent('');
+      setEmotion('');
+      setTagsInput('');
+      Alert.alert('꿈을 남겼어요', '꿈 앨범에서 다시 읽거나 해석할 수 있어요.');
+    } catch {
+      Alert.alert('저장하지 못했어요', '입력 내용은 그대로 남아 있어요. 다시 시도해 주세요.');
+    } finally {
+      busy.current = false;
+      setIsAnalyzing(false);
+    }
   };
 
   const handleFeedback = async (isHelpful: boolean) => {
@@ -244,8 +285,8 @@ export default function HomeScreen() {
             placeholder="장면, 인물, 감정, 장소를 자유롭게 적어주세요..."
             placeholderTextColor={colors.textSecondary}
             value={dreamContent}
-            onChangeText={setDreamContent}
-            editable={!isAnalyzing}
+            onChangeText={changeDraft}
+            editable={draftReady && !isAnalyzing}
             accessibilityLabel="꿈 내용"
             multiline
             textAlignVertical="top"
@@ -334,6 +375,15 @@ export default function HomeScreen() {
             </View>
           )}
 
+          <TouchableOpacity
+            accessibilityRole="button"
+            disabled={!draftReady || isAnalyzing || !dreamContent.trim()}
+            style={[styles.analyzeButton, { backgroundColor: colors.accent }, (!dreamContent.trim() || isAnalyzing) && styles.disabled]}
+            onPress={handleQuickSave}
+          >
+            <Text style={[styles.analyzeButtonText, { color: colors.onAccent }]}>꿈 기록하기</Text>
+          </TouchableOpacity>
+
           <View accessibilityLiveRegion="polite" style={styles.offlineBanner}>
             <Ionicons name="shield-checkmark-outline" size={16} color={colors.accent} />
             <Text style={[styles.offlineText, { color: colors.textSecondary, flex: 1 }]}>{aiStatus}</Text>
@@ -341,17 +391,17 @@ export default function HomeScreen() {
 
           <TouchableOpacity
             accessibilityRole="button"
-            accessibilityState={{ disabled: isAnalyzing, busy: isAnalyzing }}
-            style={[styles.analyzeButton, { backgroundColor: colors.accent }, isAnalyzing && styles.disabled]}
+            accessibilityState={{ disabled: !draftReady || isAnalyzing, busy: isAnalyzing }}
+            style={[styles.analyzeButton, { backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1 }, isAnalyzing && styles.disabled]}
             onPress={handleAnalyzeDream}
-            disabled={isAnalyzing}
+            disabled={!draftReady || isAnalyzing}
             activeOpacity={0.8}
           >
-            <Ionicons name={isAnalyzing ? 'hourglass-outline' : 'sparkles'} size={20} color={colors.onAccent} />
-            <Text style={[styles.analyzeButtonText, { color: colors.onAccent }]}>{isAnalyzing ? '해석 중...' : '꿈 해석하기'}</Text>
+            <Ionicons name={isAnalyzing ? 'hourglass-outline' : 'sparkles'} size={20} color={colors.accent} />
+            <Text style={[styles.analyzeButtonText, { color: colors.text }]}>{isAnalyzing ? '처리 중…' : '해석하고 기록하기'}</Text>
           </TouchableOpacity>
 
-          {isAnalyzing && (
+          {isAnalyzing && loadingProgress > 0 && (
             <View accessibilityRole="progressbar" accessibilityValue={{ min: 0, max: 100, now: Math.round(loadingProgress) }} style={styles.loadingCard}>
               <Text style={{ color: colors.textSecondary, marginBottom: 8 }}>기기 안에서 꿈을 살펴보고 있어요…</Text>
               <View style={[styles.progressBar, { backgroundColor: colors.border }]}>
