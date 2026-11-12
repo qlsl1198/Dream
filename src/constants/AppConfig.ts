@@ -2,7 +2,7 @@ export const APP_CONFIG = {
   name: '드림로그',
   nameEn: 'DreamLog',
   tagline: 'AI 꿈 일기 · 해몽 · 상징 사전',
-  version: '1.2.1',
+  version: '1.2.2',
   buildNumber: '3',
   supportEmail: 'qlsl1198@gmail.com',
   privacyUrl: 'https://qlsl1198.github.io/Dream/privacy.html',
