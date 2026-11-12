@@ -1,14 +1,14 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { AccessibilityInfo, Animated, AppState, Easing, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import DreamConstellation from './DreamConstellation';
+import DreamConstellation, { StarTarget } from './DreamConstellation';
 import { canAnimateCompanion, CompanionMood, getCompanionReaction, TOUCH_MOODS } from '../utils/companionMood';
 import MongiSprite from './MongiSprite';
 
 
-interface Props { count: number | null; starDates?: string; busy: boolean; justSaved: boolean; emotion?: string; focused?: boolean }
+interface Props { count: number | null; starDates?: string; busy: boolean; justSaved: boolean; emotion?: string; focused?: boolean; targets?: readonly StarTarget[]; onOpen?: (id: string) => void }
 
-export default function DreamCompanion({ count, starDates = '', busy, justSaved, emotion = '', focused = true }: Props) {
+export default function DreamCompanion({ count, starDates = '', busy, justSaved, emotion = '', focused = true, targets, onOpen }: Props) {
   const narrow = useWindowDimensions().width < 360;
   const touches = useRef(0);
   const [interaction, setInteraction] = useState<CompanionMood | null>(null);
@@ -89,7 +89,7 @@ export default function DreamCompanion({ count, starDates = '', busy, justSaved,
           <Animated.Text pointerEvents="none" accessible={false} style={[styles.sparkle, { opacity: pulse, transform: [{ translateY: pulse.interpolate({ inputRange: [0, 1], outputRange: [4, -8] }) }] }]}>✦</Animated.Text>
         </Pressable>
       </LinearGradient>
-      <DreamConstellation count={count} starDates={starDates} animate={animated && !busy} />
+      <DreamConstellation count={count} starDates={starDates} animate={animated && !busy} targets={targets} onOpen={onOpen} />
     </View>
   );
 }

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -15,7 +15,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useIsFocused } from '@react-navigation/native';
 import { useCallback } from 'react';
 import DreamCompanion from '../components/DreamCompanion';
-import { getConstellationStarDates } from '../utils/constellation';
+import { getConstellationRecords } from '../utils/constellation';
+import DreamDetailModal from './DreamDetailModal';
 import EmotionIcon from '../components/EmotionIcon';
 import DreamSceneCard from '../components/DreamSceneCard';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -47,8 +48,11 @@ export default function HomeScreen() {
   const [loadingProgress, setLoadingProgress] = useState(0);
   const [analysisResult, setAnalysisResult] = useState<DreamAnalysisResult | null>(null);
   const [currentDreamId, setCurrentDreamId] = useState<string | null>(null);
-  const [dreamCount, setDreamCount] = useState<number | null>(null);
-  const [starDates, setStarDates] = useState('');
+  const [dreams, setDreams] = useState<DreamRecord[] | null>(null);
+  const [openedDreamId, setOpenedDreamId] = useState<string | null>(null);
+  const stars = useMemo(() => getConstellationRecords(dreams ?? []), [dreams]);
+  const starDates = stars.map(dream => dream.createdAt || dream.date).join('|');
+  const refreshDreams = () => { void DreamStorage.getDreams().then(setDreams).catch(() => setDreams(null)); };
   const [resultScene, setResultScene] = useState<{ content: string; symbols: string[] } | null>(null);
   const [aiStatus, setAIStatus] = useState('온디바이스 AI 확인 중');
   const busy = useRef(false);
@@ -75,8 +79,8 @@ export default function HomeScreen() {
 
   useFocusEffect(useCallback(() => {
     let active = true;
-    DreamStorage.getDreams().then(dreams => { if (active) { setDreamCount(dreams.length); setStarDates(getConstellationStarDates(dreams)); } })
-      .catch(() => { if (active) setDreamCount(null); });
+    DreamStorage.getDreams().then(records => { if (active) setDreams(records); })
+      .catch(() => { if (active) setDreams(null); });
     return () => { active = false; };
   }, []));
 
@@ -177,7 +181,7 @@ export default function HomeScreen() {
     setSleepQuality(5);
     setDreamType('normal');
     setResultScene(result ? { content: record.content, symbols: result.matchedSymbols } : null);
-    DreamStorage.getDreams().then(dreams => { setDreamCount(dreams.length); setStarDates(getConstellationStarDates(dreams)); }).catch(() => setDreamCount(null));
+    refreshDreams();
     setCurrentDreamId(dreamId);
     setAnalysisResult(result ?? null);
     StreakService.getStreakInfo().then(setStreak).catch(() => {});
@@ -270,7 +274,7 @@ export default function HomeScreen() {
             )}
           </View>
 
-          <DreamCompanion count={dreamCount} starDates={starDates} busy={isAnalyzing} justSaved={analysisResult !== null} emotion={emotion} focused={focused} />
+          <DreamCompanion count={dreams?.length ?? null} starDates={starDates} targets={stars} onOpen={setOpenedDreamId} busy={isAnalyzing} justSaved={analysisResult !== null} emotion={emotion} focused={focused && !openedDreamId} />
 
           <Text style={[styles.sectionTitle, { color: colors.text }]}>꿈 내용</Text>
           <TextInput
@@ -489,6 +493,8 @@ export default function HomeScreen() {
           <Text style={{ color: colors.textSecondary, fontSize: 12, lineHeight: 18, marginTop: 20 }}>해석은 자기 성찰을 위한 참고이며 진단이나 예언이 아닙니다. 꿈 내용은 외부 서버로 전송되지 않습니다.</Text>
         </Animated.View>
       </ScrollView>
+      {openedDreamId ? <DreamDetailModal dream={dreams?.find(d => d.id === openedDreamId) ?? null}
+        visible onClose={() => setOpenedDreamId(null)} onChanged={refreshDreams} /> : null}
     </SafeAreaView>
   );
 }

@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -19,21 +19,31 @@ import EmotionIcon from '../components/EmotionIcon';
 import DreamPageHeader from '../components/DreamPageHeader';
 import DreamJourneyBanner from '../components/DreamJourneyBanner';
 import { dreamLayout } from '../constants/DreamDesign';
+import DreamConstellation from '../components/DreamConstellation';
+import DreamDetailModal from './DreamDetailModal';
+import { getConstellationMap, getConstellationRecords } from '../utils/constellation';
 
 interface DreamStats {
   totalDreams: number;
   emotionStats: { [key: string]: number };
-  averageConfidence: number;
-  mostCommonThemes: { theme: string; count: number }[];
+  recordedDays: number;
+  mostCommonThemes: { theme: string; ids: string[] }[];
   dreamFrequency: number;
   lucidCount: number;
   nightmareCount: number;
 }
-const EMPTY_STATS: DreamStats = { totalDreams: 0, emotionStats: {}, averageConfidence: 0, mostCommonThemes: [], dreamFrequency: 0, lucidCount: 0, nightmareCount: 0 };
+const EMPTY_STATS: DreamStats = { totalDreams: 0, emotionStats: {}, recordedDays: 0, mostCommonThemes: [], dreamFrequency: 0, lucidCount: 0, nightmareCount: 0 };
 
 export default function StatsScreen() {
   const { colors } = useTheme();
   const [dreams, setDreams] = useState<DreamRecord[]>([]);
+  const [archiveChapter, setArchiveChapter] = useState<number | undefined>();
+  const [openedDreamId, setOpenedDreamId] = useState<string | null>(null);
+  const [expandedTheme, setExpandedTheme] = useState<string | null>(null);
+  const byId = useMemo(() => new Map(dreams.map(d => [d.id, d])), [dreams]);
+  const latestChapter = getConstellationMap(dreams.length).chapter;
+  const chapter = Math.min(latestChapter, archiveChapter ?? latestChapter);
+  const stars = useMemo(() => getConstellationRecords(dreams, chapter), [dreams, chapter]);
   const [stats, setStats] = useState<DreamStats>(EMPTY_STATS);
   const [streak, setStreak] = useState<StreakInfo | null>(null);
   const [selectedPeriod, setSelectedPeriod] = useState<'week' | 'month' | 'year'>('month');
@@ -73,25 +83,19 @@ export default function StatsScreen() {
       emotionStats[dream.emotion] = (emotionStats[dream.emotion] || 0) + 1;
     });
 
-    const averageConfidence =
-      filtered.length > 0
-        ? filtered.reduce((sum, dream) => sum + dream.confidence, 0) / filtered.length
-        : 0;
-
-    const keywordCounts: Record<string, number> = {};
+    const keywordRecords = new Map<string, string[]>();
     filtered.forEach((dream) => {
-      extractKeywords(dream.content, 12).forEach((word) => {
-        keywordCounts[word] = (keywordCounts[word] || 0) + 1;
-      });
-      (dream.matchedSymbols || []).forEach((s) => {
-        keywordCounts[s] = (keywordCounts[s] || 0) + 2;
-      });
+      for (const word of new Set([...extractKeywords(dream.content, 12), ...(dream.matchedSymbols ?? [])])) {
+        const ids = keywordRecords.get(word);
+        if (ids) ids.push(dream.id);
+        else keywordRecords.set(word, [dream.id]);
+      }
     });
 
-    const mostCommonThemes = Object.entries(keywordCounts)
-      .sort((a, b) => b[1] - a[1])
+    const mostCommonThemes = [...keywordRecords]
+      .sort((a, b) => b[1].length - a[1].length)
       .slice(0, 5)
-      .map(([theme, count]) => ({ theme, count }));
+      .map(([theme, ids]) => ({ theme, ids }));
 
     const daysDiff = Math.max(
       1,
@@ -102,7 +106,7 @@ export default function StatsScreen() {
     setStats({
       totalDreams: filtered.length,
       emotionStats,
-      averageConfidence,
+      recordedDays: new Set(filtered.map(dream => dream.date)).size,
       mostCommonThemes,
       dreamFrequency: filtered.length / (daysDiff / 7),
       lucidCount: filtered.filter((d) => d.dreamType === 'lucid').length,
@@ -120,7 +124,7 @@ export default function StatsScreen() {
           <TouchableOpacity
             key={period}
             style={[styles.periodButton, selectedPeriod === period && { backgroundColor: colors.accent }]}
-            onPress={() => setSelectedPeriod(period)}
+            onPress={() => { setExpandedTheme(null); setSelectedPeriod(period); }}
             accessibilityRole="button"
             accessibilityState={{ selected: selectedPeriod === period }}
           >
@@ -134,6 +138,20 @@ export default function StatsScreen() {
 
       <ScrollView contentContainerStyle={[dreamLayout.body, { paddingTop: 0 }]} showsVerticalScrollIndicator={false}>
         <DreamJourneyBanner count={dreams.length} />
+        {dreams.length > 0 && (
+          <View style={[styles.chartContainer, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <Text style={[styles.chartTitle, { color: colors.text }]}>내 꿈 지도</Text>
+            <DreamConstellation count={dreams.length} chapter={chapter} targets={stars} onOpen={setOpenedDreamId} />
+            {latestChapter > 1 && <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 8 }}>
+              <TouchableOpacity accessibilityRole="button" disabled={chapter <= 1} onPress={() => setArchiveChapter(chapter - 1)} style={{ minHeight: 44, justifyContent: 'center', opacity: chapter <= 1 ? 0.5 : 1 }}>
+                <Text style={{ color: colors.accent }}>이전 별자리</Text>
+              </TouchableOpacity>
+              <TouchableOpacity accessibilityRole="button" disabled={chapter >= latestChapter} onPress={() => setArchiveChapter(chapter + 1)} style={{ minHeight: 44, justifyContent: 'center', opacity: chapter >= latestChapter ? 0.5 : 1 }}>
+                <Text style={{ color: colors.accent }}>다음 별자리</Text>
+              </TouchableOpacity>
+            </View>}
+          </View>
+        )}
         {streak && (
           <View style={[styles.streakCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <View style={styles.streakItem}>
@@ -161,9 +179,9 @@ export default function StatsScreen() {
           </View>
           <View style={[styles.statCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <Text style={[styles.statValue, { color: colors.text }]}>
-              {(stats.averageConfidence * 100).toFixed(0)}%
+              {stats.recordedDays}
             </Text>
-            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>평균 참고 지수</Text>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>기록한 날</Text>
           </View>
           <View style={[styles.statCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <Text style={[styles.statValue, { color: colors.text }]}>{stats.dreamFrequency.toFixed(1)}</Text>
@@ -172,7 +190,7 @@ export default function StatsScreen() {
         </View>
 
         <Text style={{ color: colors.textSecondary, fontSize: 12, lineHeight: 19, marginBottom: 20 }}>
-          주당 환산은 선택 기간의 첫 기록부터 지금까지의 빈도를 7일 기준으로 환산한 값이에요. 참고 지수는 해석의 정확도를 뜻하지 않아요.
+          주당 환산은 선택 기간의 첫 기록부터 지금까지의 빈도를 7일 기준으로 환산한 값이에요.
         </Text>
 
         <View style={[styles.chartContainer, { backgroundColor: colors.surface, borderColor: colors.border }]}>
@@ -209,12 +227,25 @@ export default function StatsScreen() {
           <Text style={[styles.chartTitle, { color: colors.text }]}>자주 나타나는 키워드·상징</Text>
           {stats.mostCommonThemes.length === 0 && <Text style={{ color: colors.textSecondary, lineHeight: 23 }}>꿈에 등장한 단어와 상징을 이곳에 모아드려요.</Text>}
           {stats.mostCommonThemes.map((theme, index) => (
-            <View key={theme.theme} style={styles.themeRow}>
+            <View key={theme.theme}>
+            <TouchableOpacity accessibilityRole="button" accessibilityState={{ expanded: expandedTheme === theme.theme }}
+              onPress={() => setExpandedTheme(value => value === theme.theme ? null : theme.theme)}
+              style={[styles.themeRow, { minHeight: 44 }]}>
               <View style={[styles.rankBadge, { backgroundColor: colors.primary }]}>
                 <Text style={styles.rankText}>{index + 1}</Text>
               </View>
               <Text style={[styles.themeText, { color: colors.text }]}>{theme.theme}</Text>
-              <Text style={[styles.themeCount, { color: colors.textSecondary }]}>{theme.count}회</Text>
+              <Text style={[styles.themeCount, { color: colors.textSecondary }]}>{theme.ids.length}편</Text>
+              <Ionicons name={expandedTheme === theme.theme ? 'chevron-up' : 'chevron-down'} size={16} color={colors.textSecondary} />
+            </TouchableOpacity>
+            {expandedTheme === theme.theme && theme.ids.map(id => {
+              const dream = byId.get(id);
+              return dream ? <TouchableOpacity key={id} accessibilityRole="button" onPress={() => setOpenedDreamId(id)}
+                style={{ minHeight: 44, paddingVertical: 10, borderTopWidth: StyleSheet.hairlineWidth, borderColor: colors.border }}>
+                <Text style={{ color: colors.textSecondary }}>{dream.date}</Text>
+                <Text numberOfLines={2} style={{ color: colors.text }}>{dream.content}</Text>
+              </TouchableOpacity> : null;
+            })}
             </View>
           ))}
         </View>
@@ -223,7 +254,7 @@ export default function StatsScreen() {
           <Text style={[styles.chartTitle, { color: colors.text }]}>인사이트</Text>
           <Text style={[styles.insightText, { color: colors.textSecondary }]}>
             {stats.totalDreams === 0 ? '떠오르는 장면 하나부터 가볍게 남겨보세요. 잠시 쉬어가도 괜찮아요.' : stats.nightmareCount > stats.totalDreams * 0.3
-              ? '악몽 비중이 높아요. 수면 환경과 스트레스를 함께 점검해보세요.'
+              ? `이 기간에 악몽으로 분류한 꿈이 ${stats.nightmareCount}편 있어요.`
               : stats.lucidCount > 0
               ? `자각몽을 ${stats.lucidCount}회 기록했어요. 그때의 장면과 느낌을 다시 살펴보세요.`
               : streak && streak.currentStreak >= 3
@@ -236,6 +267,8 @@ export default function StatsScreen() {
           <AdMobBanner adSize="MEDIUM_RECTANGLE" />
         </View>
       </ScrollView>
+      {openedDreamId ? <DreamDetailModal dream={dreams.find(d => d.id === openedDreamId) ?? null}
+        visible onClose={() => setOpenedDreamId(null)} onChanged={load} /> : null}
     </SafeAreaView>
   );
 }
