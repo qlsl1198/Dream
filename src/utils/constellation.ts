@@ -15,11 +15,12 @@ export const CONSTELLATION_STAR_FIELD = Array.from({ length: 54 }, (_, i) => {
     opacity: i % 11 === 0 ? 0.65 : 0.13 + (i % 5) * 0.065 };
 });
 
-export function getConstellationMap(count: number | null) {
+export function getConstellationMap(count: number | null, requestedChapter?: number) {
   const total = count !== null && Number.isFinite(count) ? Math.max(0, Math.floor(count)) : 0;
-  const complete = total > 0 && total % 6 === 0;
-  const chapter = complete ? total / 6 : Math.floor(total / 6) + 1;
-  const lit = complete ? 6 : total % 6;
+  const latestChapter = Math.max(1, Math.ceil(total / 6));
+  const chapter = Math.max(1, Math.min(latestChapter, requestedChapter ?? latestChapter));
+  const lit = Math.min(6, Math.max(0, total - (chapter - 1) * 6));
+  const complete = lit === 6;
   return { ...MAPS[(chapter - 1) % MAPS.length], total, chapter, lit, complete, completed: Math.floor(total / 6) };
 }
 
@@ -31,10 +32,14 @@ export function constellationLine(a: readonly number[], b: readonly number[], wi
 }
 
 /** Dates for the displayed chapter, oldest first. Never mutate stored records. */
+export function getConstellationRecords<T extends { createdAt: string; date: string; id?: string }>(records: readonly T[], chapter?: number): T[] {
+  const map = getConstellationMap(records.length, chapter);
+  return [...records].sort((a, b) => Date.parse(a.createdAt || a.date) - Date.parse(b.createdAt || b.date) || (a.id ?? '').localeCompare(b.id ?? ''))
+    .slice((map.chapter - 1) * 6, (map.chapter - 1) * 6 + map.lit);
+}
+
 export function getConstellationStarDates(records: readonly { createdAt: string; date: string }[]) {
-  const map = getConstellationMap(records.length);
-  return [...records].sort((a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt))
-    .slice((map.chapter - 1) * 6, (map.chapter - 1) * 6 + map.lit)
+  return getConstellationRecords(records)
     .map(record => record.createdAt || record.date).join('|');
 }
 

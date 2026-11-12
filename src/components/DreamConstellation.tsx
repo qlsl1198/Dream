@@ -1,15 +1,19 @@
 import React, { memo, useEffect, useRef, useState } from 'react';
-import { Animated, Easing, StyleSheet, Text, View } from 'react-native';
+import { Animated, Easing, Pressable, StyleSheet, Text, View } from 'react-native';
 import { CONSTELLATION_STAR_FIELD, constellationLine, constellationMotionMode, getConstellationMap, todayStarMask } from '../utils/constellation';
 import { localDateKey } from '../utils/dreamHelpers';
 
 const HEIGHT = 138;
 
-function DreamConstellation({ count, starDates = '', animate = false }: { count: number | null; starDates?: string; animate?: boolean }) {
+export interface StarTarget { id: string; date: string; content: string }
+function DreamConstellation({ count, starDates = '', animate = false, chapter, targets, onOpen }: {
+  count: number | null; starDates?: string; animate?: boolean; chapter?: number;
+  targets?: readonly StarTarget[]; onOpen?: (id: string) => void;
+}) {
   const [width, setWidth] = useState(0);
   const [today, setToday] = useState(localDateKey);
   const lights = useRef(Array.from({ length: 6 }, () => new Animated.Value(0))).current;
-  const map = getConstellationMap(count);
+  const map = getConstellationMap(count, chapter);
   const loading = count === null;
   const maskKey = todayStarMask(starDates, today).map(Boolean).map(Number).join('');
   const mode = constellationMotionMode(animate && !loading, map.complete, [...maskKey].map(v => v === '1'));
@@ -39,12 +43,12 @@ function DreamConstellation({ count, starDates = '', animate = false }: { count:
     animation.start();
     return () => { animation.stop(); lights.forEach(light => { light.stopAnimation(); light.setValue(0); }); };
   }, [mode, maskKey, lights]);
-  return <View style={styles.container} accessible accessibilityLabel={loading ? '꿈 별자리를 불러오는 중입니다' : `나의 꿈 별자리. ${map.name}, ${map.lit}/6개. 꿈 ${map.total}개, 완성한 별자리 ${map.completed}개${map.complete ? '. 별자리를 완성했어요' : ''}`}>
+  return <View style={styles.container}>
     <View style={styles.header}>
       <View style={styles.heading}><Text style={styles.title}>나의 꿈 별자리</Text><Text style={styles.name}>{loading ? '별빛을 불러오는 중' : map.name}</Text></View>
       <Text style={styles.counterText}>{loading ? '— / 6' : `${map.lit} / 6`}</Text>
     </View>
-    <View style={styles.sky} onLayout={event => setWidth(Math.max(0, event.nativeEvent.layout.width - 36))} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+    <View style={styles.sky} onLayout={event => setWidth(Math.max(0, event.nativeEvent.layout.width - 36))}>
       {CONSTELLATION_STAR_FIELD.map((star, i) => <View key={`dust-${i}`} style={[styles.dust, { left: `${star.x}%`, top: `${star.y}%`, width: star.size, height: star.size, opacity: star.opacity }]} />)}
       <View style={styles.map}>
         {width > 0 && map.points.slice(0, -1).map((point, i) => {
@@ -54,7 +58,13 @@ function DreamConstellation({ count, starDates = '', animate = false }: { count:
         })}
         {map.points.map(([x, y], i) => {
           const lit = !loading && i < map.lit;
-          return <View key={`star-${i}`} style={[styles.node, { left: `${x}%`, top: `${y}%` }]}>
+          const target = lit ? targets?.[i] : undefined;
+          return <Pressable key={target?.id ?? `star-${i}`} style={[styles.node, { left: `${x}%`, top: `${y}%` }]}
+            disabled={!target || !onOpen}
+            accessible={!!target && !!onOpen}
+            accessibilityRole={target ? 'button' : undefined}
+            accessibilityLabel={target ? `${target.date} 꿈: ${target.content.slice(0, 45)}` : undefined}
+            onPress={() => { if (target) onOpen?.(target.id); }}>
             {lit ? <Animated.View style={[styles.light, {
               opacity: lights[i].interpolate({ inputRange: [0, 1], outputRange: [mode === 'complete' || (mode === 'today' && maskKey[i] === '1') ? 0.3 : 1, 1] }),
               transform: [{ scale: lights[i].interpolate({ inputRange: [0, 1], outputRange: [1, 1.24] }) }],
@@ -63,12 +73,12 @@ function DreamConstellation({ count, starDates = '', animate = false }: { count:
               <View style={[styles.ray, styles.rayHorizontal]} /><View style={[styles.ray, styles.rayVertical]} />
               <View style={[styles.core, { width: i === map.lit - 1 ? 4 : 3, height: i === map.lit - 1 ? 4 : 3 }]} />
             </Animated.View> : <View style={styles.unlit} />}
-          </View>;
+          </Pressable>;
         })}
       </View>
     </View>
     <View style={styles.footerRow}><Text style={styles.total}>{loading ? '기록은 이 기기 안에 머물러요' : `${map.total}개의 꿈 · ${map.completed}개 완성`}</Text><Text style={styles.chapter}>{map.chapter}번째 별자리</Text></View>
-    <Text style={styles.hint}>{loading ? '꿈 한 조각이 작은 별이 돼요.' : map.complete ? '별자리를 완성했어요! 다음 꿈은 새로운 별의 시작이에요.' : `꿈 ${6 - map.lit}개를 더 모으면 이 별자리가 완성돼요.`}</Text>
+    <Text style={styles.hint}>{targets?.length && onOpen ? '빛나는 별을 눌러 그날의 꿈을 다시 읽어요.' : loading ? '꿈 한 조각이 작은 별이 돼요.' : map.complete ? '별자리를 완성했어요! 다음 꿈은 새로운 별의 시작이에요.' : `꿈 ${6 - map.lit}개를 더 모으면 이 별자리가 완성돼요.`}</Text>
   </View>;
 }
 export default memo(DreamConstellation);
@@ -83,7 +93,7 @@ const styles = StyleSheet.create({
   map: { position: 'absolute', left: 18, right: 18, top: 12, height: HEIGHT },
   dust: { position: 'absolute', borderRadius: 2, backgroundColor: '#CEDDF2' },
   line: { position: 'absolute' },
-  node: { position: 'absolute', width: 28, height: 28, marginLeft: -14, marginTop: -14, justifyContent: 'center', alignItems: 'center' },
+  node: { position: 'absolute', width: 44, height: 44, marginLeft: -22, marginTop: -22, justifyContent: 'center', alignItems: 'center' },
   halo: { position: 'absolute', width: 8, height: 8, borderRadius: 4, backgroundColor: '#C7DFFF', boxShadow: '0 0 9px 5px rgba(153, 195, 255, 0.32)' },
   light: { width: 28, height: 28, alignItems: 'center', justifyContent: 'center' },
   core: { borderRadius: 3, backgroundColor: '#F4F8FF', boxShadow: '0 0 4px 1px rgba(219, 237, 255, 0.9)' },
