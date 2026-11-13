@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="330" viewBox="0 0 1200 330" role="img" aria-labelledby="title desc">
+  <title id="title">DreamLog</title>
+  <desc id="desc">A midnight-blue sky with a gold crescent and a six-star constellation.</desc>
+  <defs>
+    <linearGradient id="sky" x2="1" y2="1" gradientUnits="objectBoundingBox">
+      <stop stop-color="#090f1f"/>
+      <stop offset="1" stop-color="#1d314c"/>
+    </linearGradient>
+    <radialGradient id="glow">
+      <stop stop-color="#c9dbff" stop-opacity=".28"/>
+      <stop offset="1" stop-color="#c9dbff" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1200" height="330" rx="28" fill="url(#sky)"/>
+  <circle cx="911" cy="152" r="146" fill="url(#glow)"/>
+  <path d="M961 61a43 43 0 1 0 43 60 44 44 0 0 1-43-60z" fill="#e8ce96"/>
+  <path d="M735 159l52 36 70 17 58-29 59 26 87-57" fill="none" stroke="#9ab7db" stroke-opacity=".55" stroke-width="1.5"/>
+  <g fill="#edf4ff">
+    <circle cx="735" cy="159" r="3"/><circle cx="787" cy="195" r="3"/>
+    <circle cx="857" cy="212" r="4"/><circle cx="915" cy="183" r="3"/>
+    <circle cx="974" cy="209" r="3"/><circle cx="1061" cy="152" r="4"/>
+  </g>
+  <g fill="#c9dbff" opacity=".48">
+    <circle cx="706" cy="94" r="1.5"/><circle cx="759" cy="259" r="1.5"/>
+    <circle cx="833" cy="108" r="2"/><circle cx="1010" cy="263" r="1.5"/>
+    <circle cx="1088" cy="95" r="2"/><circle cx="1131" cy="213" r="1.5"/>
+  </g>
+  <text x="88" y="123" fill="#e8ce96" font-family="sans-serif" font-size="19" letter-spacing="5">PRIVATE DREAM JOURNAL</text>
+  <text x="84" y="210" fill="#f7f1e5" font-family="serif" font-size="82" font-weight="700">DreamLog</text>
+  <text x="89" y="258" fill="#b8c7dc" font-family="sans-serif" font-size="24">One dream, one star.</text>
+</svg>
