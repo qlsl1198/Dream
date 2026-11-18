@@ -16,6 +16,7 @@ import { ShareService } from '../services/ShareService';
 import { LocalAIService } from '../services/LocalAIService';
 import { dreamInterpreter } from '../services/DreamInterpreter';
 import { APP_CONFIG } from '../constants/AppConfig';
+import { matchSymbolEvidence } from '../data/dreamSymbols';
 import DreamSceneCard from '../components/DreamSceneCard';
 import EmotionIcon from '../components/EmotionIcon';
 import { dreamLayout } from '../constants/DreamDesign';
@@ -184,6 +185,18 @@ export default function DreamDetailModal({ dream: initial, visible, onClose, onC
                 ))}
               </View>
             </>
+          )}
+
+          {matchSymbolEvidence(dream.content).length > 0 && (
+            <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>본문에서 찾은 단서</Text>
+              <Text style={{ color: colors.textSecondary }}>단어가 나타난 근거이며, 해석의 정확도를 보증하지 않아요.</Text>
+              {matchSymbolEvidence(dream.content).map(({ symbol, keyword, excerpt }) => (
+                <Text key={symbol.id} style={[styles.content, { color: colors.text }]}>
+                  {symbol.name} · ‘{keyword}’ — “{excerpt}”
+                </Text>
+              ))}
+            </View>
           )}
 
           {dream.recommendations && dream.recommendations.length > 0 && (

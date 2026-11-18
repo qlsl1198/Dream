@@ -47,6 +47,14 @@ function load(file) {
 }
 
 async function main() {
+  const { matchSymbolsInText, matchSymbolEvidence } = load(root + '/src/data/dreamSymbols.ts');
+  for (const content of ['고요한 바다 위로 은은한 달빛이 비치고 나는 걸었다', '이상한 기분이 들어 집중하고 계산했다', '피아노를 치다가 개발 문제를 고민했다']) {
+    assert(!matchSymbolsInText(content).some(s => s.id === 'teeth'), content);
+  }
+  assert.deepEqual(matchSymbolsInText('피아노 개발 계산 금방 문제').map(s => s.id), []);
+  assert(matchSymbolsInText('이빨이 빠졌다').some(s => s.id === 'teeth'));
+  assert(matchSymbolsInText('강에서 개와 함께 산으로 갔다').some(s => s.id === 'dog'));
+  assert(matchSymbolEvidence('바다에서 수영했다').some(e => e.keyword === '바다' && e.excerpt.includes('바다')));
   const appVersion = JSON.parse(fs.readFileSync(root + '/app.json', 'utf8')).expo.version;
   const pkg = JSON.parse(fs.readFileSync(root + '/package.json', 'utf8'));
   const pkgLock = JSON.parse(fs.readFileSync(root + '/package-lock.json', 'utf8'));
