@@ -20,6 +20,7 @@ import DreamDetailModal from './DreamDetailModal';
 import EmotionIcon from '../components/EmotionIcon';
 import DreamSceneCard from '../components/DreamSceneCard';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { decodeDraft, encodeDraft } from '../services/DreamDraft';
 import { withStorageLock } from '../services/StorageQueue';
 import { dreamLayout } from '../constants/DreamDesign';
 import { useTheme } from '../contexts/ThemeContext';
@@ -64,18 +65,27 @@ export default function HomeScreen() {
     let active = true;
     setDraftReady(false);
     withStorageLock(() => AsyncStorage.getItem('dream_draft')).then(value => {
-      if (active) setDreamContent((value ?? '').slice(0, APP_CONFIG.maxDreamLength));
+      const draft = decodeDraft(value);
+      if (active) {
+        setDreamContent(draft.content); setEmotion(draft.emotion); setDreamType(draft.dreamType);
+        setVividness(draft.vividness); setSleepQuality(draft.sleepQuality); setTagsInput(draft.tagsInput);
+        setDraftReady(true);
+      }
     }).catch(() => {
       if (active) Alert.alert('임시 기록을 불러오지 못했어요');
-    }).finally(() => { if (active) setDraftReady(true); });
+    });
     return () => { active = false; };
   }, []));
 
   const changeDraft = (value: string) => {
     setDreamContent(value);
-    void withStorageLock(() => value ? AsyncStorage.setItem('dream_draft', value) : AsyncStorage.removeItem('dream_draft'))
-      .catch(() => Alert.alert('임시 저장 실패', '입력 내용은 화면에 남아 있어요.'));
   };
+  useEffect(() => {
+    if (!draftReady || !focused || isAnalyzing) return;
+    const serialized = encodeDraft({ content: dreamContent, emotion, dreamType, vividness, sleepQuality, tagsInput });
+    void withStorageLock(() => AsyncStorage.setItem('dream_draft', serialized))
+      .catch(() => Alert.alert('임시 저장 실패', '입력 내용은 화면에 남아 있어요.'));
+  }, [draftReady, focused, isAnalyzing, dreamContent, emotion, dreamType, vividness, sleepQuality, tagsInput]);
 
   useFocusEffect(useCallback(() => {
     let active = true;
@@ -375,6 +385,7 @@ export default function HomeScreen() {
                 placeholderTextColor={colors.textSecondary}
                 value={tagsInput}
                 onChangeText={setTagsInput}
+                maxLength={2000}
               />
             </View>
           )}

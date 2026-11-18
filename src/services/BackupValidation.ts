@@ -15,6 +15,7 @@ export function validateDream(value: unknown): value is DreamRecord {
     strings(value.recommendations) && strings(value.themes) && strings(value.matchedSymbols) && strings(value.tags) &&
     (value.isFavorite === undefined || typeof value.isFavorite === 'boolean') &&
     (value.notes === undefined || text(value.notes)) &&
+    (value.interpretationStale === undefined || typeof value.interpretationStale === 'boolean') &&
     ['vividness', 'sleepQuality'].every(k => value[k] === undefined || (typeof value[k] === 'number' && Number.isFinite(value[k]) && value[k] >= 0 && value[k] <= 10)) &&
     (value.dreamType === undefined || ['normal', 'lucid', 'nightmare', 'recurring'].includes(String(value.dreamType)));
 }

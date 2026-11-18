@@ -8,6 +8,7 @@ import {
   ScrollView,
   SafeAreaView,
   Alert,
+  TextInput,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../contexts/ThemeContext';
@@ -15,7 +16,7 @@ import { DreamRecord, DreamStorage } from '../services/DreamStorage';
 import { ShareService } from '../services/ShareService';
 import { LocalAIService } from '../services/LocalAIService';
 import { dreamInterpreter } from '../services/DreamInterpreter';
-import { APP_CONFIG } from '../constants/AppConfig';
+import { APP_CONFIG, EMOTIONS } from '../constants/AppConfig';
 import { matchSymbolEvidence } from '../data/dreamSymbols';
 import DreamSceneCard from '../components/DreamSceneCard';
 import EmotionIcon from '../components/EmotionIcon';
@@ -38,7 +39,13 @@ export default function DreamDetailModal({ dream: initial, visible, onClose, onC
   const [updated, setUpdated] = useState<DreamRecord | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
   const analysisLock = useRef(false);
-  const dream = initial && updated?.id === initial.id && !initial.interpretation ? updated : initial;
+  const [editing, setEditing] = useState(false);
+  const [editContent, setEditContent] = useState('');
+  const [editEmotion, setEditEmotion] = useState('');
+  const [editTags, setEditTags] = useState('');
+  const [saving, setSaving] = useState(false);
+  const saveLock = useRef(false);
+  const dream = initial && updated?.id === initial.id ? updated : initial;
 
   if (!dream) return null;
 
@@ -53,7 +60,7 @@ export default function DreamDetailModal({ dream: initial, visible, onClose, onC
     try {
       const status = await LocalAIService.getStatus();
       const result = await dreamInterpreter.analyzeDream(dream.content, dream.emotion, !status.available);
-      const saved = await DreamStorage.updateDream(dream.id, {
+      const saved = await DreamStorage.saveAnalysis(dream.id, dream.content, dream.emotion, {
         interpretation: result.interpretation, confidence: result.confidence,
         recommendations: result.recommendations, themes: result.themes, matchedSymbols: result.matchedSymbols,
       });
@@ -69,8 +76,36 @@ export default function DreamDetailModal({ dream: initial, visible, onClose, onC
     }
   };
 
+  const beginEdit = () => {
+    setEditContent(dream.content); setEditEmotion(dream.emotion);
+    setEditTags((dream.tags ?? []).join(', ')); setEditing(true);
+  };
+  const saveEdit = async () => {
+    if (saveLock.current || !editContent.trim()) return;
+    saveLock.current = true; setSaving(true);
+    try {
+      const saved = await DreamStorage.updateDream(dream.id, {
+        content: editContent.trim(), emotion: editEmotion,
+        tags: [...new Set(editTags.split(',').map(t => t.trim()).filter(Boolean))].slice(0, 10),
+      });
+      if (!saved) throw Error('Missing record');
+      setUpdated(saved); setEditing(false); onChanged?.();
+    } catch { Alert.alert('수정하지 못했어요', '입력 내용은 편집 화면에 남아 있어요.'); }
+    finally { saveLock.current = false; setSaving(false); }
+  };
+  const close = () => {
+    if (saving || analyzing) return;
+    if (editing) {
+      Alert.alert('편집을 닫을까요?', '저장하지 않은 수정은 반영되지 않아요.', [
+        { text: '계속 편집', style: 'cancel' },
+        { text: '닫기', onPress: () => { setEditing(false); onClose(); } },
+      ]);
+    } else onClose();
+  };
+
   const toggleFavorite = async () => {
     await DreamStorage.toggleFavorite(dream.id);
+    setUpdated(await DreamStorage.getDreamById(dream.id));
     onChanged?.();
   };
 
@@ -98,14 +133,18 @@ export default function DreamDetailModal({ dream: initial, visible, onClose, onC
   };
 
   return (
-    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
+    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={close}>
       <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
         <View style={[styles.header, { borderBottomColor: colors.border }]}>
-          <TouchableOpacity accessibilityRole="button" accessibilityLabel="꿈 상세 닫기" style={styles.closeButton} onPress={onClose}>
+          <TouchableOpacity accessibilityRole="button" accessibilityLabel="꿈 상세 닫기" style={styles.closeButton} onPress={close} disabled={saving || analyzing}>
             <Ionicons name="close" size={24} color={colors.text} />
           </TouchableOpacity>
           <Text style={[styles.headerTitle, { color: colors.text }]}>꿈 한 장</Text>
           <View style={styles.headerActions}>
+            <TouchableOpacity accessibilityRole="button" accessibilityLabel="꿈 기록 수정" style={styles.iconBtn}
+              disabled={saving || analyzing || editing} onPress={beginEdit}>
+              <Ionicons name="create-outline" size={22} color={colors.text} />
+            </TouchableOpacity>
             <TouchableOpacity accessibilityRole="button" accessibilityLabel={dream.isFavorite ? '즐겨찾기 해제' : '즐겨찾기 추가'} onPress={toggleFavorite} style={styles.iconBtn}>
               <Ionicons
                 name={dream.isFavorite ? 'heart' : 'heart-outline'}
@@ -120,6 +159,30 @@ export default function DreamDetailModal({ dream: initial, visible, onClose, onC
         </View>
 
         <ScrollView contentContainerStyle={dreamLayout.body}>
+          {editing && <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>꿈 기록 수정</Text>
+            <TextInput accessibilityLabel="수정할 꿈 내용" value={editContent} onChangeText={setEditContent}
+              editable={!saving} maxLength={5000} multiline textAlignVertical="top"
+              style={{ color: colors.text, borderWidth: 1, borderColor: colors.border, borderRadius: 12, padding: 12, minHeight: 150, fontSize: 16 }} />
+            <Text style={{ color: colors.textSecondary }}>감정</Text>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+              {[{ key: '', label: '선택 안 함' }, ...EMOTIONS].map(e => <TouchableOpacity key={e.key}
+                accessibilityRole="radio" accessibilityState={{ checked: editEmotion === e.key }}
+                aria-checked={editEmotion === e.key} disabled={saving} onPress={() => setEditEmotion(e.key)}
+                style={{ padding: 12, minHeight: 44, borderRadius: 12, backgroundColor: editEmotion === e.key ? colors.accent : colors.background }}>
+                <Text style={{ color: editEmotion === e.key ? colors.onAccent : colors.text }}>{e.label}</Text>
+              </TouchableOpacity>)}
+            </View>
+            <TextInput accessibilityLabel="수정할 태그" value={editTags} onChangeText={setEditTags} editable={!saving}
+              maxLength={2000} placeholder="태그를 쉼표로 구분" placeholderTextColor={colors.textSecondary}
+              style={{ minHeight: 48, color: colors.text, padding: 12 }} />
+            <TouchableOpacity accessibilityRole="button" disabled={saving || !editContent.trim()} onPress={saveEdit} style={{ minHeight: 48, justifyContent: 'center' }}>
+              <Text style={{ color: colors.accent, fontWeight: '700' }}>{saving ? '저장 중…' : '수정 저장'}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity accessibilityRole="button" disabled={saving} onPress={() => setEditing(false)} style={{ minHeight: 44, justifyContent: 'center' }}>
+              <Text style={{ color: colors.textSecondary }}>수정 취소</Text>
+            </TouchableOpacity>
+          </View>}
           <Text style={[styles.date, { color: colors.textSecondary }]}>{formatFullDate(dream.date)}</Text>
           <DreamSceneCard content={dream.content} symbols={dream.matchedSymbols} />
 
@@ -165,6 +228,9 @@ export default function DreamDetailModal({ dream: initial, visible, onClose, onC
           )}
 
           <Text style={[styles.sectionTitle, { color: colors.text }]}>해석</Text>
+          {dream.interpretationStale && <Text style={{ color: colors.warning, lineHeight: 22 }}>
+            수정 전 내용 기준의 해석이에요. 원할 때 다시 해석할 수 있어요.
+          </Text>}
           <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             {dream.interpretation ? <Text style={[styles.content, { color: colors.text }]}>{dream.interpretation}</Text> : (
               <TouchableOpacity accessibilityRole="button" accessibilityState={{ busy: analyzing, disabled: analyzing }}
@@ -173,10 +239,14 @@ export default function DreamDetailModal({ dream: initial, visible, onClose, onC
               </TouchableOpacity>
             )}
           </View>
+          {dream.interpretationStale && !editing && <TouchableOpacity accessibilityRole="button"
+            disabled={analyzing} onPress={analyzeSavedDream} style={{ minHeight: 48, justifyContent: 'center' }}>
+            <Text style={{ color: colors.accent }}>{analyzing ? '다시 해석 중…' : '수정한 꿈 다시 해석하기'}</Text>
+          </TouchableOpacity>}
 
           {dream.matchedSymbols && dream.matchedSymbols.length > 0 && (
             <>
-              <Text style={[styles.sectionTitle, { color: colors.text }]}>감지된 상징</Text>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>{dream.interpretationStale ? '이전 해석에서 감지된 상징' : '감지된 상징'}</Text>
               <View style={styles.tags}>
                 {dream.matchedSymbols.map((s) => (
                   <View key={s} style={[styles.tag, { backgroundColor: colors.accent + '33', borderColor: colors.accent }]}>
@@ -218,7 +288,7 @@ export default function DreamDetailModal({ dream: initial, visible, onClose, onC
             </>
           ) : null}
 
-          <TouchableOpacity style={[styles.deleteBtn, { borderColor: colors.error }]} onPress={handleDelete}>
+          <TouchableOpacity disabled={editing || saving || analyzing} style={[styles.deleteBtn, { borderColor: colors.error }]} onPress={handleDelete}>
             <Ionicons name="trash-outline" size={18} color={colors.error} />
             <Text style={{ color: colors.error, fontWeight: '600', marginLeft: 8 }}>기록 삭제</Text>
           </TouchableOpacity>

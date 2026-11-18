@@ -23,6 +23,7 @@ export interface DreamRecord {
   dreamType?: DreamTypeKey;
   tags?: string[];
   notes?: string;
+  interpretationStale?: boolean;
 }
 
 const DREAMS_KEY = 'dream_records';
@@ -50,7 +51,12 @@ export class DreamStorage {
       const index = dreams.findIndex((d) => d.id === id);
       if (index === -1) return null;
 
-      const updated = { ...dreams[index], ...updates };
+      const prior = dreams[index];
+      const changed = (updates.content !== undefined && updates.content !== prior.content) ||
+        (updates.emotion !== undefined && updates.emotion !== prior.emotion);
+      const updated = { ...prior, ...updates, id: prior.id, date: prior.date, createdAt: prior.createdAt,
+        interpretationStale: changed && prior.interpretation ? true : (updates.interpretationStale ?? prior.interpretationStale) };
+      if (!validateDream(updated) || !updated.content.trim()) throw new Error('Invalid update');
       dreams[index] = updated;
       await AsyncStorage.setItem(DREAMS_KEY, JSON.stringify(dreams));
       return updated;
@@ -58,6 +64,21 @@ export class DreamStorage {
       console.error('꿈 업데이트 오류:', error);
       throw new Error('꿈을 수정하는 중 오류가 발생했습니다.');
     }
+    });
+  }
+
+  static async saveAnalysis(id: string, content: string, emotion: string, result: Pick<DreamRecord, 'interpretation' | 'confidence' | 'recommendations' | 'themes' | 'matchedSymbols'>): Promise<DreamRecord | null> {
+    return withStorageLock(async () => {
+      const dreams = await this.getDreams();
+      const index = dreams.findIndex(d => d.id === id);
+      if (index < 0) return null;
+      const dream = dreams[index];
+      if (dream.content !== content || dream.emotion !== emotion) throw Error('기록이 변경됐어요. 다시 해석해 주세요.');
+      const updated = { ...dream, ...result, interpretationStale: false };
+      if (!validateDream(updated)) throw Error('Invalid analysis');
+      dreams[index] = updated;
+      await AsyncStorage.setItem(DREAMS_KEY, JSON.stringify(dreams));
+      return updated;
     });
   }
 
