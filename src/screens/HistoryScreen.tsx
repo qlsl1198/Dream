@@ -11,7 +11,7 @@ import {
   ImageBackground,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useNavigation, useRoute, type NavigationProp, type RouteProp } from '@react-navigation/native';
 import { useTheme } from '../contexts/ThemeContext';
 import { DreamStorage, DreamRecord } from '../services/DreamStorage';
 import {
@@ -26,12 +26,19 @@ import DreamPageHeader, { DreamEmptyState } from '../components/DreamPageHeader'
 import { dreamLayout } from '../constants/DreamDesign';
 import { getDreamScene } from '../utils/dreamWorld';
 import { DREAM_ARTWORK } from '../components/dreamArtwork';
+import { DREAM_SYMBOLS } from '../data/dreamSymbols';
+import { findPersonalSymbolRecords, type SymbolHistoryParams } from '../utils/personalSymbolRecords';
 
 type FilterMode = 'all' | 'favorite' | 'lucid' | 'nightmare';
 
 export default function HistoryScreen() {
   const { colors } = useTheme();
-  const [dreams, setDreams] = useState<DreamRecord[]>([]);
+  const navigation = useNavigation<NavigationProp<SymbolHistoryParams>>();
+  const route = useRoute<RouteProp<SymbolHistoryParams, 'History'>>();
+  const symbol = DREAM_SYMBOLS.find(item => item.id === route.params?.symbolId);
+  const symbolId = symbol?.id;
+  const [loaded, setLoaded] = useState<{ symbolId?: string; dreams: DreamRecord[] }>();
+  const dreams = loaded?.symbolId === symbolId ? loaded?.dreams ?? [] : [];
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<FilterMode>('all');
   const [selected, setSelected] = useState<DreamRecord | null>(null);
@@ -42,20 +49,23 @@ export default function HistoryScreen() {
   const loadDreams = useCallback(async () => {
     const requestId = ++request.current;
     try {
-      let data = query.trim()
+      let data = !symbolId && query.trim()
         ? await DreamStorage.searchDreams(query)
         : await DreamStorage.getDreams();
 
-      if (filter === 'favorite') data = data.filter((d) => d.isFavorite);
-      if (filter === 'lucid') data = data.filter((d) => d.dreamType === 'lucid');
-      if (filter === 'nightmare') data = data.filter((d) => d.dreamType === 'nightmare');
+      if (symbolId) data = findPersonalSymbolRecords(data, symbolId).map(item => item.record);
+      else {
+        if (filter === 'favorite') data = data.filter((d) => d.isFavorite);
+        if (filter === 'lucid') data = data.filter((d) => d.dreamType === 'lucid');
+        if (filter === 'nightmare') data = data.filter((d) => d.dreamType === 'nightmare');
+      }
 
-      if (requestId === request.current) { setDreams(data); setReadError(false); }
+      if (requestId === request.current) { setLoaded({ symbolId, dreams: data }); setReadError(false); }
     } catch (error) {
       console.error('꿈 기록 불러오기 오류:', error);
       if (requestId === request.current) setReadError(true);
     }
-  }, [query, filter]);
+  }, [query, filter, symbolId]);
 
   useFocusEffect(
     useCallback(() => {
@@ -115,6 +125,14 @@ export default function HistoryScreen() {
       <DreamPageHeader title="꿈 앨범" subtitle="밤마다 모아둔 나의 이야기" />
 
       <View style={dreamLayout.column}>
+      {symbol ? (
+        <View style={styles.filterRow}>
+          <Text style={[styles.dreamContent, { color: colors.text }]}>{symbol.name} · 내 기록</Text>
+          <TouchableOpacity accessibilityRole="button" onPress={() => navigation.setParams({ symbolId: undefined })}>
+            <Text style={[styles.filterChip, { color: colors.accent, borderColor: colors.border }]}>필터 해제</Text>
+          </TouchableOpacity>
+        </View>
+      ) : <>
       <View
         style={[
           styles.searchBox,
@@ -160,6 +178,7 @@ export default function HistoryScreen() {
           </TouchableOpacity>
         ))}
       </View>
+      </>}
       {readError ? <Text accessibilityRole="alert" style={{ color: colors.error, paddingHorizontal: 24, paddingBottom: 12 }}>기록을 읽지 못했어요. 기존 데이터는 보존됩니다. 아래로 당겨 다시 시도해주세요.</Text> : null}
       </View>
 
@@ -169,7 +188,9 @@ export default function HistoryScreen() {
         keyExtractor={(item) => item.id}
         contentContainerStyle={[dreamLayout.column, styles.listContainer, dreams.length === 0 && styles.emptyListContainer]}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-        ListEmptyComponent={
+        ListEmptyComponent={loaded?.symbolId !== symbolId && !readError ? null : symbol && !readError ? (
+          <DreamEmptyState title="이 상징이 담긴 기록이 없어요" description="꿈 본문에 등장한 상징만 모아 보여드려요." />
+        ) :
           <DreamEmptyState title={readError ? '꿈을 다시 불러와주세요' : query || filter !== 'all' ? '아직 찾는 꿈이 없어요' : '첫 번째 꿈을 기다려요'} description={query || filter !== 'all' ? '검색어나 필터를 바꿔 다른 꿈을 찾아보세요.' : '해석 탭에서 꿈을 남기면 이곳에 한 장씩 모여요.'} />
         }
         showsVerticalScrollIndicator={false}

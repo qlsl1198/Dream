@@ -55,6 +55,16 @@ async function main() {
   assert(matchSymbolsInText('이빨이 빠졌다').some(s => s.id === 'teeth'));
   assert(matchSymbolsInText('강에서 개와 함께 산으로 갔다').some(s => s.id === 'dog'));
   assert(matchSymbolEvidence('바다에서 수영했다').some(e => e.keyword === '바다' && e.excerpt.includes('바다')));
+  const { findPersonalSymbolRecords } = load(root + '/src/utils/personalSymbolRecords.ts');
+  const personalRecords = [
+    { id: 'first', content: '바다에서 수영했다. 바다를 보았다.' },
+    { id: 'unrelated', content: '서점에 갔다.', matchedSymbols: ['바다'], interpretation: '바다' },
+    { id: 'second', content: '바다를 바라봤다.' },
+  ];
+  const oceans = findPersonalSymbolRecords(personalRecords, 'ocean');
+  assert.deepEqual(oceans.map(item => item.record.id), ['first', 'second']);
+  assert(oceans.every(item => item.excerpt.includes('바다')));
+  assert.deepEqual(findPersonalSymbolRecords(personalRecords, 'unknown'), []);
   const appVersion = JSON.parse(fs.readFileSync(root + '/app.json', 'utf8')).expo.version;
   const pkg = JSON.parse(fs.readFileSync(root + '/package.json', 'utf8'));
   const pkgLock = JSON.parse(fs.readFileSync(root + '/package-lock.json', 'utf8'));
