@@ -1,4 +1,10 @@
-# iOS 배포 상태 — 2026-11-12
+# iOS 배포 상태
+
+## 1.2.3(22): 원문 중심 꿈 앨범과 개인 상징 기록
+
+2026-11-23 17:56 KST [App Store 심사 제출 완료·심사 대기 중](https://appstoreconnect.apple.com/apps/6825689455/distribution/reviewsubmissions/details/d09508c0-383f-485f-8587-7a3840cdb6ce).
+TestFlight 내부 Team (Expo)에 빌드 22가 연결됐다. 병합 `7cafd69`, 빌드 소스 `dd08b27`.
+검증 범위와 후속 절차는 [1.2.3 배포 인수인계](IOS_ALBUM_RELEASE.md)를 참조한다.
 
 ## 1.2.2(21): 빠른 기록과 내 꿈 지도
 
