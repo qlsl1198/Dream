@@ -178,13 +178,29 @@ async function main() {
   assert.equal(getDreamScene('집에서 고양이와 놀았다').id, 'cozy');
   assert.equal(getDreamScene('괴물에게 쫓기며 도망쳤다').id, 'storm');
   assert.equal(getDreamScene('하늘을 날아 구름을 만졌다', ['물', '바다', '호수']).id, 'sky', 'actual content wins over extracted symbols');
-  assert.equal(getDreamScene('계산에 집중했다. 별로 기억나지 않고 피아노 소리만 났다.').id, 'night');
+  assert.equal(getDreamScene('계산에 집중했다. 별로 기억나지 않는다.').association, 'ambient');
   assert.equal(getDreamScene('I was flying above a cloud').id, 'sky');
-  assert.equal(getDreamScene('carefully practiced piano').id, 'night', 'English car/cat must not match inside a word');
+  assert.equal(getDreamScene('carefully practiced piano').association, 'ambient', 'English car/cat must not match inside a word');
+  for (const [ko, en, id] of [
+    ['도서관에서 책을 펼쳤다', 'library books', 'library'],
+    ['친구와 기차를 타고 여행했다', 'train station', 'train'],
+    ['사막의 모래언덕을 걸었다', 'desert dunes', 'desert'],
+    ['겨울 눈밭에서 눈사람을 만들었다', 'winter snow', 'snow'],
+    ['궁전의 오래된 성문을 열었다', 'castle ruins', 'ruins'],
+    ['놀이공원에서 불꽃놀이를 보았다', 'festival music', 'festival'],
+  ]) for (const input of [ko, en]) {
+    assert.equal(getDreamScene(input).id, id);
+    assert.equal(getDreamScene(input).association, 'keyword');
+  }
+  const vague = Array.from({ length: 60 }, (_, i) => getDreamScene('어렴풋한 장면의 기억 ' + i));
+  assert.ok(vague.every(scene => scene.association === 'ambient'));
+  assert.equal(new Set(vague.map(scene => scene.id)).size, 7);
+  assert.deepEqual(getDreamScene(' 어렴풋한 장면 '), getDreamScene('어렴풋한 장면'));
+  assert.equal(new Set(Array.from({ length: 30 }, (_, i) => getDreamScene('바다에서 수영했다 ' + i).title)).size, 3);
   const artSource = fs.readFileSync(root + '/src/components/dreamArtwork.ts', 'utf8');
   const sceneAssets = [...artSource.matchAll(/require\('([^']+\.png)'\)/g)].map(m => path.resolve(root + '/src/components', m[1]));
-  assert.equal(sceneAssets.length, 7);
-  assert.equal(new Set(sceneAssets).size, 7, 'each scene has its own illustration');
+  assert.equal(sceneAssets.length, 13);
+  assert.equal(new Set(sceneAssets).size, 13, 'each scene has its own illustration');
   for (const asset of sceneAssets) assert.ok(fs.existsSync(asset), asset);
   assert.equal(getDreamScene('').id, 'night');
   assert.deepEqual(getConstellationProgress(0), { total: 0, chapter: 1, stars: 0, completed: 0 });
