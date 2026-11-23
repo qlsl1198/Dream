@@ -11,7 +11,7 @@ import {
   ImageBackground,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useNavigation, useRoute, type NavigationProp, type RouteProp } from '@react-navigation/native';
 import { useTheme } from '../contexts/ThemeContext';
 import { DreamStorage, DreamRecord } from '../services/DreamStorage';
 import {
@@ -25,13 +25,20 @@ import { LinearGradient } from 'expo-linear-gradient';
 import DreamPageHeader, { DreamEmptyState } from '../components/DreamPageHeader';
 import { dreamLayout } from '../constants/DreamDesign';
 import { getDreamScene } from '../utils/dreamWorld';
-import { getDreamArtwork } from '../components/dreamArtwork';
+import { DREAM_ARTWORK } from '../components/dreamArtwork';
+import { DREAM_SYMBOLS } from '../data/dreamSymbols';
+import { findPersonalSymbolRecords, type SymbolHistoryParams } from '../utils/personalSymbolRecords';
 
 type FilterMode = 'all' | 'favorite' | 'lucid' | 'nightmare';
 
 export default function HistoryScreen() {
   const { colors } = useTheme();
-  const [dreams, setDreams] = useState<DreamRecord[]>([]);
+  const navigation = useNavigation<NavigationProp<SymbolHistoryParams>>();
+  const route = useRoute<RouteProp<SymbolHistoryParams, 'History'>>();
+  const symbol = DREAM_SYMBOLS.find(item => item.id === route.params?.symbolId);
+  const symbolId = symbol?.id;
+  const [loaded, setLoaded] = useState<{ symbolId?: string; dreams: DreamRecord[] }>();
+  const dreams = loaded?.symbolId === symbolId ? loaded?.dreams ?? [] : [];
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<FilterMode>('all');
   const [selected, setSelected] = useState<DreamRecord | null>(null);
@@ -42,20 +49,23 @@ export default function HistoryScreen() {
   const loadDreams = useCallback(async () => {
     const requestId = ++request.current;
     try {
-      let data = query.trim()
+      let data = !symbolId && query.trim()
         ? await DreamStorage.searchDreams(query)
         : await DreamStorage.getDreams();
 
-      if (filter === 'favorite') data = data.filter((d) => d.isFavorite);
-      if (filter === 'lucid') data = data.filter((d) => d.dreamType === 'lucid');
-      if (filter === 'nightmare') data = data.filter((d) => d.dreamType === 'nightmare');
+      if (symbolId) data = findPersonalSymbolRecords(data, symbolId).map(item => item.record);
+      else {
+        if (filter === 'favorite') data = data.filter((d) => d.isFavorite);
+        if (filter === 'lucid') data = data.filter((d) => d.dreamType === 'lucid');
+        if (filter === 'nightmare') data = data.filter((d) => d.dreamType === 'nightmare');
+      }
 
-      if (requestId === request.current) { setDreams(data); setReadError(false); }
+      if (requestId === request.current) { setLoaded({ symbolId, dreams: data }); setReadError(false); }
     } catch (error) {
       console.error('꿈 기록 불러오기 오류:', error);
       if (requestId === request.current) setReadError(true);
     }
-  }, [query, filter]);
+  }, [query, filter, symbolId]);
 
   useFocusEffect(
     useCallback(() => {
@@ -77,7 +87,9 @@ export default function HistoryScreen() {
     { key: 'nightmare', label: '악몽' },
   ];
 
-  const renderDreamItem = ({ item }: { item: DreamRecord }) => (
+  const renderDreamItem = ({ item }: { item: DreamRecord }) => {
+    const scene = getDreamScene(item.content, item.matchedSymbols);
+    return (
     <TouchableOpacity
       style={[styles.dreamItem, { backgroundColor: colors.surface, borderColor: colors.border }]}
       onPress={() => setSelected(item)}
@@ -85,54 +97,42 @@ export default function HistoryScreen() {
       accessibilityRole="button"
       accessibilityLabel={`${formatRelativeDate(item.date)} 꿈 기록 열기, 감정 ${getEmotionLabel(item.emotion)}, ${item.content.slice(0, 40)}`}
     >
-      <ImageBackground source={getDreamArtwork(item.content, item.matchedSymbols)} style={styles.cover}>
-        <LinearGradient colors={['transparent', '#0B1426CC']} style={styles.coverShade}>
-          <Text style={styles.coverTitle}>{getDreamScene(item.content, item.matchedSymbols).title}</Text>
-        </LinearGradient>
-      </ImageBackground>
       <View style={styles.entryBody}>
       <View style={styles.dreamHeader}>
         <View style={styles.dreamInfo}>
-          <Text style={[styles.dreamDate, { color: colors.text }]}>{formatRelativeDate(item.date)}</Text>
+          <Text style={[styles.dreamDate, { color: colors.textSecondary }]}>{formatRelativeDate(item.date)}</Text>
           <EmotionIcon emotion={item.emotion} size={20} />
           {item.isFavorite && <Ionicons name="heart" size={14} color={colors.error} />}
         </View>
-        <Text style={[styles.typeLabel, { color: colors.textSecondary }]}>
-          {getDreamTypeLabel(item.dreamType)}
-        </Text>
+        <Text style={[styles.typeLabel, { color: colors.textSecondary }]}>{getDreamTypeLabel(item.dreamType)}</Text>
       </View>
-
       <Text style={[styles.dreamContent, { color: colors.text }]} numberOfLines={3}>
-        {item.content}
+        {item.content.trim() || '제목 없는 꿈'}
       </Text>
-
-      <View style={styles.dreamFooter}>
-        <View style={styles.confidenceContainer}>
-          <Ionicons name="analytics-outline" size={14} color={colors.primary} />
-          <Text style={[styles.confidenceText, { color: colors.textSecondary }]}>
-            {item.interpretation ? `해석 참고 ${Math.round(item.confidence * 100)}%` : '기록만 저장됨'}
-          </Text>
-        </View>
-        {item.matchedSymbols && item.matchedSymbols.length > 0 ? (
-          <Text style={[styles.symbolHint, { color: colors.accent }]} numberOfLines={1}>
-            {item.matchedSymbols.slice(0, 2).join(' · ')}
-          </Text>
-        ) : item.interpretation ? (
-          <View style={styles.interpretationBadge}>
-            <Ionicons name="checkmark-circle" size={14} color={colors.success} />
-            <Text style={[styles.interpretationText, { color: colors.success }]}>해석 완료</Text>
-          </View>
-        ) : null}
+      {!item.interpretation && <Text style={[styles.typeLabel, { color: colors.textSecondary }]}>기록만 저장됨</Text>}
       </View>
-      </View>
+      <ImageBackground source={DREAM_ARTWORK[scene.id]} style={styles.cover}>
+        <LinearGradient colors={['transparent', '#0B1426CC']} style={styles.coverShade}>
+          <Text style={styles.coverTitle} numberOfLines={2}>꿈의 풍경 · {scene.title}</Text>
+        </LinearGradient>
+      </ImageBackground>
     </TouchableOpacity>
-  );
+    );
+  };
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <DreamPageHeader title="꿈 앨범" subtitle="밤마다 모아둔 나의 이야기" />
 
       <View style={dreamLayout.column}>
+      {symbol ? (
+        <View style={styles.filterRow}>
+          <Text style={[styles.dreamContent, { color: colors.text }]}>{symbol.name} · 내 기록</Text>
+          <TouchableOpacity accessibilityRole="button" onPress={() => navigation.setParams({ symbolId: undefined })}>
+            <Text style={[styles.filterChip, { color: colors.accent, borderColor: colors.border }]}>필터 해제</Text>
+          </TouchableOpacity>
+        </View>
+      ) : <>
       <View
         style={[
           styles.searchBox,
@@ -178,6 +178,7 @@ export default function HistoryScreen() {
           </TouchableOpacity>
         ))}
       </View>
+      </>}
       {readError ? <Text accessibilityRole="alert" style={{ color: colors.error, paddingHorizontal: 24, paddingBottom: 12 }}>기록을 읽지 못했어요. 기존 데이터는 보존됩니다. 아래로 당겨 다시 시도해주세요.</Text> : null}
       </View>
 
@@ -187,7 +188,9 @@ export default function HistoryScreen() {
         keyExtractor={(item) => item.id}
         contentContainerStyle={[dreamLayout.column, styles.listContainer, dreams.length === 0 && styles.emptyListContainer]}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-        ListEmptyComponent={
+        ListEmptyComponent={loaded?.symbolId !== symbolId && !readError ? null : symbol && !readError ? (
+          <DreamEmptyState title="이 상징이 담긴 기록이 없어요" description="꿈 본문에 등장한 상징만 모아 보여드려요." />
+        ) :
           <DreamEmptyState title={readError ? '꿈을 다시 불러와주세요' : query || filter !== 'all' ? '아직 찾는 꿈이 없어요' : '첫 번째 꿈을 기다려요'} description={query || filter !== 'all' ? '검색어나 필터를 바꿔 다른 꿈을 찾아보세요.' : '해석 탭에서 꿈을 남기면 이곳에 한 장씩 모여요.'} />
         }
         showsVerticalScrollIndicator={false}
@@ -246,30 +249,22 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     borderWidth: 1,
   },
-  cover: { height: 132, justifyContent: 'flex-end' },
+  cover: { minHeight: 100, justifyContent: 'flex-end', backgroundColor: '#162740' },
   coverShade: { padding: 18, paddingTop: 36 },
-  coverTitle: { fontSize: 18, fontWeight: '700', color: '#F7F1E5' },
+  coverTitle: { fontSize: 12, fontWeight: '600', color: '#F7F1E5' },
   entryBody: { padding: 20 },
   dreamHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 8,
+    flexWrap: 'wrap',
+    gap: 6,
   },
   dreamInfo: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   dreamDate: { fontSize: 14, fontWeight: '600', marginRight: 4 },
   typeLabel: { fontSize: 12 },
-  dreamContent: { fontSize: 14, lineHeight: 20, marginBottom: 12 },
-  dreamFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  confidenceContainer: { flexDirection: 'row', alignItems: 'center' },
-  confidenceText: { fontSize: 12, marginLeft: 4, fontWeight: '500' },
-  interpretationBadge: { flexDirection: 'row', alignItems: 'center' },
-  interpretationText: { fontSize: 12, marginLeft: 4, fontWeight: '500' },
-  symbolHint: { fontSize: 12, fontWeight: '600', maxWidth: '55%' },
+  dreamContent: { fontSize: 19, lineHeight: 28, fontWeight: '700', marginBottom: 4 },
   emptyContainer: { alignItems: 'center', paddingVertical: 60 },
   emptyTitle: { fontSize: 18, fontWeight: '600', marginTop: 16, marginBottom: 8 },
   emptySubtitle: { fontSize: 14, textAlign: 'center' },

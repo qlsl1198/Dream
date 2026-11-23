@@ -2,20 +2,23 @@ import React from 'react';
 import { ImageBackground, StyleSheet, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { getDreamScene } from '../utils/dreamWorld';
-import { getDreamArtwork } from './dreamArtwork';
+import { DREAM_ARTWORK } from './dreamArtwork';
 
 interface Props { content: string; symbols?: readonly string[] }
 
 export default function DreamSceneCard({ content, symbols }: Props) {
   const scene = getDreamScene(content, symbols);
+  const caption = scene.association === 'keyword'
+    ? '꿈의 단어에서 영감을 받은 상상 카드'
+    : '기록을 위해 고른 상상 풍경 · 꿈속 실제 장소는 아니에요';
   return (
-    <View style={styles.card} accessible accessibilityLabel={`꿈 장면 카드, ${scene.title}. 꿈의 단어를 바탕으로 고른 상상 일러스트입니다.`}>
-      <ImageBackground source={getDreamArtwork(content, symbols)} style={styles.image} imageStyle={styles.art}>
+    <View style={styles.card} accessible accessibilityLabel={`꿈 장면 카드, ${scene.title}. ${caption}`}>
+      <ImageBackground source={DREAM_ARTWORK[scene.id]} style={styles.image} imageStyle={styles.art}>
         <LinearGradient colors={['transparent', '#0B1426F2']} style={styles.shade}>
-          <Text style={styles.eyebrow}>꿈의 풍경 · {scene.id === 'night' ? '달의 정원' : scene.title}</Text>
+          <Text style={styles.eyebrow}>꿈의 풍경</Text>
           <Text style={styles.title}>{scene.title}</Text>
           <Text style={styles.hint}>{scene.hint}</Text>
-          <Text style={styles.caption}>꿈의 단어에서 영감을 받은 상상 카드</Text>
+          <Text style={styles.caption}>{caption}</Text>
         </LinearGradient>
       </ImageBackground>
     </View>

@@ -7,6 +7,10 @@ import { DREAM_CATEGORIES, DREAM_SYMBOLS, DreamSymbol, searchSymbols } from '../
 import DreamPageHeader, { DreamEmptyState } from '../components/DreamPageHeader';
 import { dreamLayout } from '../constants/DreamDesign';
 import { getSymbolColumns, getSymbolVisual } from '../utils/symbolVisuals';
+import { useNavigation, type NavigationProp } from '@react-navigation/native';
+import { DreamStorage } from '../services/DreamStorage';
+import { formatRelativeDate } from '../utils/dreamHelpers';
+import { findPersonalSymbolRecords, type SymbolHistoryParams } from '../utils/personalSymbolRecords';
 
 const CLOUD = require('../../assets/dream-world/symbol-clouds.png');
 const BOOK = require('../../assets/dream-world/symbol-book.png');
@@ -39,11 +43,28 @@ const SymbolCard = memo(function SymbolCard({ symbol, onSelect, cardWidth }: { s
 export default function SymbolDictionaryScreen() {
   const { colors } = useTheme();
   const { width, fontScale } = useWindowDimensions();
+  const navigation = useNavigation<NavigationProp<SymbolHistoryParams>>();
   const columns = getSymbolColumns(width, fontScale);
   const cardWidth = (Math.min(width, 760) - 48 - (columns - 1) * 12) / columns;
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState<(typeof DREAM_CATEGORIES)[number]>('전체');
   const [selected, setSelected] = useState<DreamSymbol | null>(null);
+  const [personal, setPersonal] = useState<{ id: string; rows: { id: string; date: string; excerpt: string }[]; failed?: boolean }>();
+  const selectedId = selected?.id;
+  const current = personal?.id === selectedId ? personal : undefined;
+  useEffect(() => {
+    if (!selectedId) return;
+    let active = true;
+    setPersonal(undefined);
+    DreamStorage.getDreams().then(dreams => {
+      if (!active) return;
+      const rows = findPersonalSymbolRecords(dreams, selectedId).map(({ record, excerpt }) => ({ id: record.id, date: record.date, excerpt }));
+      setPersonal({ id: selectedId, rows });
+    }).catch(() => {
+      if (active) setPersonal({ id: selectedId, rows: [], failed: true });
+    });
+    return () => { active = false; };
+  }, [selectedId]);
   const list = useRef<FlatList<DreamSymbol>>(null);
   const results = useMemo(() => searchSymbols(query, category), [query, category]);
   const showIntro = !query.trim() && category === '전체';
@@ -98,6 +119,27 @@ export default function SymbolDictionaryScreen() {
           <Text style={[styles.detailCategory, { color: colors.accent }]}>{selected.category}</Text>
           <Text accessibilityRole="header" style={[styles.detailTitle, { color: colors.text }]}>{selected.name}</Text>
           <SymbolPicture symbol={selected} large />
+          <Text accessibilityRole="header" style={[styles.sectionLabel, { color: colors.accent }]}>
+            {current && !current.failed ? `내 기록 ${current.rows.length}개` : '내 기록'}
+          </Text>
+          {!current || current.failed || !current.rows.length ? (
+            <Text style={[styles.sectionBody, { color: colors.textSecondary }]}>
+              {!current ? '내 꿈에서 이 상징을 찾는 중이에요…' : current.failed ? '기록을 읽지 못했어요. 도감을 닫고 다시 열어주세요.' : '아직 꿈 본문에서 이 상징을 찾지 못했어요.'}
+            </Text>
+          ) : <>
+            {current.rows.slice(0, 3).map(row => (
+              <View key={row.id} style={[styles.recordRow, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                <Text style={{ color: colors.textSecondary }}>{formatRelativeDate(row.date)}</Text>
+                <Text style={[styles.sectionBody, { color: colors.text }]}>{row.excerpt.trim()}</Text>
+              </View>
+            ))}
+            <TouchableOpacity accessibilityRole="button" style={styles.openRecords} onPress={() => {
+              setSelected(null);
+              navigation.navigate('History', { symbolId: selected.id });
+            }}>
+              <Text style={{ color: colors.accent, fontWeight: '700' }}>앨범에서 모아보기 →</Text>
+            </TouchableOpacity>
+          </>}
           <Text style={[styles.sectionLabel, { color: colors.accent }]}>전통적 해석</Text>
           <Text style={[styles.sectionBody, { color: colors.text }]}>{selected.traditional}</Text>
           <Text style={[styles.sectionLabel, { color: colors.accent }]}>심리적 해석</Text>
@@ -151,6 +193,8 @@ const styles = StyleSheet.create({
   landscapeSymbol: { position: 'absolute', right: 16, bottom: 16, backgroundColor: '#0B1426AA', padding: 9, borderRadius: 30 },
   sectionLabel: { fontSize: 20, lineHeight: 28, fontWeight: '700', marginTop: 26, marginBottom: 12 },
   sectionBody: { fontSize: 15, lineHeight: 27 },
+  recordRow: { padding: 12, borderWidth: 1, borderRadius: 14, marginBottom: 8, gap: 4 },
+  openRecords: { minHeight: 44, justifyContent: 'center' },
   tipRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, borderWidth: 1, borderRadius: 16, padding: 14, marginBottom: 10 },
   tipNumber: { width: 28, height: 28, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
   tipText: { flex: 1, fontSize: 14, lineHeight: 24 },

@@ -291,8 +291,31 @@ export function searchSymbols(query: string, category = '전체'): DreamSymbol[]
 }
 
 export function matchSymbolsInText(content: string): DreamSymbol[] {
+  return matchSymbolEvidence(content).map(match => match.symbol);
+}
+
+/** Conservative lexical evidence, not a claim about the meaning of a dream. */
+export function matchSymbolEvidence(content: string, symbolId?: string) {
   const lower = content.toLowerCase();
-  return DREAM_SYMBOLS.filter((symbol) =>
-    symbol.keywords.some((k) => lower.includes(k.toLowerCase()))
-  );
+  // Ambiguous aliases must not independently imply a symbol.
+  const excluded = new Set(['이', '빠지다', '문제', '금', '정상', '삼', '비치다', '건너다']);
+  const suffix = /^(?:(?:이|가|은|는|을|를|의|에|에서|에게|와|과|로|으로|도|만|처럼|보다|부터|까지|랑|이랑|들|속|위|아래|쪽|마다|에는|에서는|으로는))*$/;
+  return DREAM_SYMBOLS.flatMap(symbol => {
+    if (symbolId !== undefined && symbol.id !== symbolId) return [];
+    for (const keyword of symbol.keywords) {
+      if (excluded.has(keyword)) continue;
+      let offset = lower.indexOf(keyword);
+      while (offset >= 0) {
+        const before = lower[offset - 1] ?? '';
+        const tail = lower.slice(offset + keyword.length).match(/^[\p{L}\p{N}]*/u)?.[0] ?? '';
+        const leftBoundary = !/[\p{L}\p{N}]/u.test(before);
+        const stem = ['날아', '뒤쫓', '헤매', '길을 잃', '길잃', '갓난'].includes(keyword);
+        if (leftBoundary && (stem || suffix.test(tail))) {
+          return [{ symbol, keyword, excerpt: content.slice(Math.max(0, offset - 18), Math.min(content.length, offset + keyword.length + 24)) }];
+        }
+        offset = lower.indexOf(keyword, offset + 1);
+      }
+    }
+    return [];
+  });
 }

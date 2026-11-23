@@ -125,6 +125,7 @@ export class OfflineDreamInterpreter {
     const matched = matchSymbolsInText(content);
 
     let interpretation = this.interpretations[primaryTheme] || this.interpretations.general;
+    if (matched.length === 0) interpretation = '뚜렷하게 연결할 상징 단서가 부족해 구체적인 의미를 붙이지 않았어요. 기억나는 장면과 감정을 더 남겨보세요.';
 
     if (matched.length > 0) {
       const symbolNotes = matched
@@ -148,21 +149,14 @@ export class OfflineDreamInterpreter {
       matchedSymbols: matched.map((s) => s.name),
       summary: matched.length
         ? `${matched[0].name} 등 ${matched.length}개 상징이 포함된 꿈`
-        : '일상 심리와 연결된 꿈',
+        : '아직 뚜렷한 상징 단서가 없는 꿈',
       source: 'offline',
     };
   }
 
   private identifyThemes(content: string): string[] {
-    const themes: string[] = [];
-    const lower = content.toLowerCase();
-
-    for (const [theme, keywords] of Object.entries(this.dreamThemes)) {
-      const matchCount = keywords.filter((keyword) => lower.includes(keyword.toLowerCase())).length;
-      if (matchCount > 0) themes.push(theme);
-    }
-
-    return themes;
+    const mapping: Record<string, string> = { falling: 'falling', chase: 'chasing', flying: 'flying', water: 'water', ocean: 'water', teeth: 'teeth', exam: 'exam', school: 'exam', death: 'death', house: 'house', snake: 'animal', dog: 'animal', cat: 'animal', fire: 'fire' };
+    return [...new Set(matchSymbolsInText(content).map(symbol => mapping[symbol.id]).filter(Boolean))];
   }
 }
 

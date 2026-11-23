@@ -47,6 +47,24 @@ function load(file) {
 }
 
 async function main() {
+  const { matchSymbolsInText, matchSymbolEvidence } = load(root + '/src/data/dreamSymbols.ts');
+  for (const content of ['고요한 바다 위로 은은한 달빛이 비치고 나는 걸었다', '이상한 기분이 들어 집중하고 계산했다', '피아노를 치다가 개발 문제를 고민했다']) {
+    assert(!matchSymbolsInText(content).some(s => s.id === 'teeth'), content);
+  }
+  assert.deepEqual(matchSymbolsInText('피아노 개발 계산 금방 문제').map(s => s.id), []);
+  assert(matchSymbolsInText('이빨이 빠졌다').some(s => s.id === 'teeth'));
+  assert(matchSymbolsInText('강에서 개와 함께 산으로 갔다').some(s => s.id === 'dog'));
+  assert(matchSymbolEvidence('바다에서 수영했다').some(e => e.keyword === '바다' && e.excerpt.includes('바다')));
+  const { findPersonalSymbolRecords } = load(root + '/src/utils/personalSymbolRecords.ts');
+  const personalRecords = [
+    { id: 'first', content: '바다에서 수영했다. 바다를 보았다.' },
+    { id: 'unrelated', content: '서점에 갔다.', matchedSymbols: ['바다'], interpretation: '바다' },
+    { id: 'second', content: '바다를 바라봤다.' },
+  ];
+  const oceans = findPersonalSymbolRecords(personalRecords, 'ocean');
+  assert.deepEqual(oceans.map(item => item.record.id), ['first', 'second']);
+  assert(oceans.every(item => item.excerpt.includes('바다')));
+  assert.deepEqual(findPersonalSymbolRecords(personalRecords, 'unknown'), []);
   const appVersion = JSON.parse(fs.readFileSync(root + '/app.json', 'utf8')).expo.version;
   const pkg = JSON.parse(fs.readFileSync(root + '/package.json', 'utf8'));
   const pkgLock = JSON.parse(fs.readFileSync(root + '/package-lock.json', 'utf8'));
@@ -170,13 +188,29 @@ async function main() {
   assert.equal(getDreamScene('집에서 고양이와 놀았다').id, 'cozy');
   assert.equal(getDreamScene('괴물에게 쫓기며 도망쳤다').id, 'storm');
   assert.equal(getDreamScene('하늘을 날아 구름을 만졌다', ['물', '바다', '호수']).id, 'sky', 'actual content wins over extracted symbols');
-  assert.equal(getDreamScene('계산에 집중했다. 별로 기억나지 않고 피아노 소리만 났다.').id, 'night');
+  assert.equal(getDreamScene('계산에 집중했다. 별로 기억나지 않는다.').association, 'ambient');
   assert.equal(getDreamScene('I was flying above a cloud').id, 'sky');
-  assert.equal(getDreamScene('carefully practiced piano').id, 'night', 'English car/cat must not match inside a word');
+  assert.equal(getDreamScene('carefully practiced piano').association, 'ambient', 'English car/cat must not match inside a word');
+  for (const [ko, en, id] of [
+    ['도서관에서 책을 펼쳤다', 'library books', 'library'],
+    ['친구와 기차를 타고 여행했다', 'train station', 'train'],
+    ['사막의 모래언덕을 걸었다', 'desert dunes', 'desert'],
+    ['겨울 눈밭에서 눈사람을 만들었다', 'winter snow', 'snow'],
+    ['궁전의 오래된 성문을 열었다', 'castle ruins', 'ruins'],
+    ['놀이공원에서 불꽃놀이를 보았다', 'festival music', 'festival'],
+  ]) for (const input of [ko, en]) {
+    assert.equal(getDreamScene(input).id, id);
+    assert.equal(getDreamScene(input).association, 'keyword');
+  }
+  const vague = Array.from({ length: 60 }, (_, i) => getDreamScene('어렴풋한 장면의 기억 ' + i));
+  assert.ok(vague.every(scene => scene.association === 'ambient'));
+  assert.equal(new Set(vague.map(scene => scene.id)).size, 7);
+  assert.deepEqual(getDreamScene(' 어렴풋한 장면 '), getDreamScene('어렴풋한 장면'));
+  assert.equal(new Set(Array.from({ length: 30 }, (_, i) => getDreamScene('바다에서 수영했다 ' + i).title)).size, 3);
   const artSource = fs.readFileSync(root + '/src/components/dreamArtwork.ts', 'utf8');
   const sceneAssets = [...artSource.matchAll(/require\('([^']+\.png)'\)/g)].map(m => path.resolve(root + '/src/components', m[1]));
-  assert.equal(sceneAssets.length, 7);
-  assert.equal(new Set(sceneAssets).size, 7, 'each scene has its own illustration');
+  assert.equal(sceneAssets.length, 13);
+  assert.equal(new Set(sceneAssets).size, 13, 'each scene has its own illustration');
   for (const asset of sceneAssets) assert.ok(fs.existsSync(asset), asset);
   assert.equal(getDreamScene('').id, 'night');
   assert.deepEqual(getConstellationProgress(0), { total: 0, chapter: 1, stars: 0, completed: 0 });
@@ -236,6 +270,11 @@ async function main() {
   }
   const { parseBackup, escapeHTML } = load(root + '/src/services/BackupValidation.ts');
   const { DreamStorage } = load(root + '/src/services/DreamStorage.ts');
+  const { decodeDraft, encodeDraft, EMPTY_DRAFT } = load(root + '/src/services/DreamDraft.ts');
+  assert.equal(decodeDraft('예전 본문').content, '예전 본문');
+  const fullDraft = { ...EMPTY_DRAFT, content: '바다에서 수영했다', emotion: 'joy', dreamType: 'lucid', vividness: 8, sleepQuality: 4, tagsInput: '바다, 여행' };
+  assert.deepEqual(decodeDraft(encodeDraft(fullDraft)), fullDraft);
+  assert.throws(() => decodeDraft('dreamlog-draft-v1:{"content": 3}'));
   const { MemoryStorage } = load(root + '/src/services/MemoryStorage.ts');
   const { localDateKey } = load(root + '/src/utils/dreamHelpers.ts');
   const record = { id: 'one', content: '하늘을 나는 꿈', emotion: 'joy', interpretation: '해석', date: '2026-10-22', createdAt: '2026-10-22T00:00:00Z', confidence: 0.6, tags: ['여행'], dreamType: 'lucid', vividness: 8, sleepQuality: 6 };
@@ -252,6 +291,16 @@ async function main() {
   assert.equal(values.get('dream_draft'), '');
   assert.equal((await DreamStorage.getDreams()).find(d => d.id === pendingDream.id).interpretation, '');
   await DreamStorage.updateDream(pendingDream.id, { interpretation: '나중에 생성한 해석', confidence: 0.6 });
+  const changedDream = await DreamStorage.updateDream(pendingDream.id, { content: '수정한 바다 꿈', emotion: 'fear' });
+  assert.equal(changedDream.interpretationStale, true);
+  assert.equal(changedDream.interpretation, '나중에 생성한 해석');
+  await assert.rejects(() => DreamStorage.saveAnalysis(pendingDream.id, pendingDream.content, pendingDream.emotion, { interpretation: '오래된 결과', confidence: 0.4 }));
+  const fresh = await DreamStorage.saveAnalysis(pendingDream.id, changedDream.content, changedDream.emotion, { interpretation: '수정 후 해석', confidence: 0.7 });
+  assert.equal(fresh.interpretationStale, false);
+  const tagOnly = await DreamStorage.updateDream(pendingDream.id, { tags: ['수정'], id: '다른 ID' });
+  assert.equal(tagOnly.id, pendingDream.id);
+  assert.equal(tagOnly.interpretationStale, false);
+  await assert.rejects(() => DreamStorage.updateDream(pendingDream.id, { content: ' ' }));
   assert.equal((await DreamStorage.getDreams()).length, 26, 'late analysis must update rather than duplicate');
   const memory = { id: 'memory', description: '기억', clues: ['단서'], questions: ['질문'], status: 'completed', date: record.date, createdAt: record.createdAt };
   await Promise.all(Array.from({ length: 10 }, (_, n) => MemoryStorage.saveMemory({ ...memory, id: String(n) })));
