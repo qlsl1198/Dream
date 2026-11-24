@@ -1,5 +1,12 @@
 # iOS 배포 상태
 
+## TestFlight 1.2.4(25): 본문 단서 먼저 · 몽이의 아침 한 조각
+
+2026-11-24 [TestFlight 1.2.4(25)](https://appstoreconnect.apple.com/teams/9971145e-f3dc-41f3-bf29-f35c9129157c/apps/6825689455/testflight/ios/86529542-04c9-45bf-a003-ea701432400c)
+Apple 처리 완료, 기존 내부 Team (Expo) 그룹 연결. 빌드 소스 `d63593e`.
+무료 클라우드 한도 소진으로 Mac에서 로컬 서명 빌드했다. 1.2.4 App Review 미제출,
+1.2.3(22) 공개 유지. [배포 인수인계](IOS_MORNING_TESTFLIGHT.md).
+
 ## 1.2.3(22): 원문 중심 꿈 앨범과 개인 상징 기록
 
 2026-11-23 17:56 KST [App Store 심사 제출 완료·심사 대기 중](https://appstoreconnect.apple.com/apps/6825689455/distribution/reviewsubmissions/details/d09508c0-383f-485f-8587-7a3840cdb6ce).
