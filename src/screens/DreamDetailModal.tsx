@@ -17,7 +17,7 @@ import { ShareService } from '../services/ShareService';
 import { LocalAIService } from '../services/LocalAIService';
 import { dreamInterpreter } from '../services/DreamInterpreter';
 import { APP_CONFIG, EMOTIONS } from '../constants/AppConfig';
-import { matchSymbolEvidence } from '../data/dreamSymbols';
+import DreamEvidence from '../components/DreamEvidence';
 import DreamSceneCard from '../components/DreamSceneCard';
 import EmotionIcon from '../components/EmotionIcon';
 import { dreamLayout } from '../constants/DreamDesign';
@@ -196,11 +196,6 @@ export default function DreamDetailModal({ dream: initial, visible, onClose, onC
                 </Text>
               </View>
             ) : null}
-            {dream.interpretation ? <View style={[styles.chip, { backgroundColor: colors.success + '22' }]}>
-              <Text style={{ color: colors.success, fontSize: 12, fontWeight: '600' }}>
-                해석 참고 지수 {Math.round(dream.confidence * 100)}%
-              </Text>
-            </View> : null}
           </View>
 
           {(dream.vividness || dream.sleepQuality) && (
@@ -227,6 +222,7 @@ export default function DreamDetailModal({ dream: initial, visible, onClose, onC
             </View>
           )}
 
+          {dream.interpretation ? <DreamEvidence content={dream.content} /> : null}
           <Text style={[styles.sectionTitle, { color: colors.text }]}>해석</Text>
           {dream.interpretationStale && <Text style={{ color: colors.warning, lineHeight: 22 }}>
             수정 전 내용 기준의 해석이에요. 원할 때 다시 해석할 수 있어요.
@@ -243,31 +239,6 @@ export default function DreamDetailModal({ dream: initial, visible, onClose, onC
             disabled={analyzing} onPress={analyzeSavedDream} style={{ minHeight: 48, justifyContent: 'center' }}>
             <Text style={{ color: colors.accent }}>{analyzing ? '다시 해석 중…' : '수정한 꿈 다시 해석하기'}</Text>
           </TouchableOpacity>}
-
-          {dream.matchedSymbols && dream.matchedSymbols.length > 0 && (
-            <>
-              <Text style={[styles.sectionTitle, { color: colors.text }]}>{dream.interpretationStale ? '이전 해석에서 감지된 상징' : '감지된 상징'}</Text>
-              <View style={styles.tags}>
-                {dream.matchedSymbols.map((s) => (
-                  <View key={s} style={[styles.tag, { backgroundColor: colors.accent + '33', borderColor: colors.accent }]}>
-                    <Text style={{ color: colors.text, fontSize: 12 }}>{s}</Text>
-                  </View>
-                ))}
-              </View>
-            </>
-          )}
-
-          {matchSymbolEvidence(dream.content).length > 0 && (
-            <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-              <Text style={[styles.sectionTitle, { color: colors.text }]}>본문에서 찾은 단서</Text>
-              <Text style={{ color: colors.textSecondary }}>단어가 나타난 근거이며, 해석의 정확도를 보증하지 않아요.</Text>
-              {matchSymbolEvidence(dream.content).map(({ symbol, keyword, excerpt }) => (
-                <Text key={symbol.id} style={[styles.content, { color: colors.text }]}>
-                  {symbol.name} · ‘{keyword}’ — “{excerpt}”
-                </Text>
-              ))}
-            </View>
-          )}
 
           {dream.recommendations && dream.recommendations.length > 0 && (
             <>

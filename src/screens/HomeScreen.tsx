@@ -19,6 +19,7 @@ import { getConstellationRecords } from '../utils/constellation';
 import DreamDetailModal from './DreamDetailModal';
 import EmotionIcon from '../components/EmotionIcon';
 import DreamSceneCard from '../components/DreamSceneCard';
+import DreamEvidence from '../components/DreamEvidence';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { decodeDraft, encodeDraft } from '../services/DreamDraft';
 import { withStorageLock } from '../services/StorageQueue';
@@ -427,50 +428,19 @@ export default function HomeScreen() {
 
           {analysisResult && (
             <View style={styles.resultSection}>
-              {resultScene && <DreamSceneCard content={resultScene.content} symbols={resultScene.symbols} />}
               <View style={styles.resultHeader}>
                 <Ionicons name="sparkles" size={18} color={colors.accent} />
                 <Text style={[styles.resultTitle, { color: colors.text }]}>
                   해석 결과 · {analysisResult.source === 'ai' ? '온디바이스 AI' : '기본 해석'}
                 </Text>
               </View>
+              {resultScene && <DreamEvidence content={resultScene.content} />}
 
               <View style={[styles.resultCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                 <Text style={[styles.summary, { color: colors.accent }]}>{analysisResult.summary}</Text>
 
-                <View style={styles.confidenceRow}>
-                  <Text style={{ color: colors.textSecondary, fontSize: 13 }}>해석 참고 지수</Text>
-                  <Text style={{ color: colors.text, fontWeight: '700' }}>
-                    {Math.round(analysisResult.confidence * 100)}%
-                  </Text>
-                </View>
-                <View style={[styles.progressBar, { backgroundColor: colors.border, marginBottom: 14 }]}>
-                  <View
-                    style={[
-                      styles.progressFill,
-                      {
-                        width: `${analysisResult.confidence * 100}%`,
-                        backgroundColor: colors.success,
-                      },
-                    ]}
-                  />
-                </View>
-
                 <Text style={[styles.blockTitle, { color: colors.text }]}>해석</Text>
                 <Text style={[styles.bodyText, { color: colors.text }]}>{analysisResult.interpretation}</Text>
-
-                {analysisResult.matchedSymbols.length > 0 && (
-                  <>
-                    <Text style={[styles.blockTitle, { color: colors.text }]}>감지된 상징</Text>
-                    <View style={styles.symbolRow}>
-                      {analysisResult.matchedSymbols.map((s) => (
-                        <View key={s} style={[styles.symbolChip, { borderColor: colors.accent }]}>
-                          <Text style={{ color: colors.text, fontSize: 12 }}>{s}</Text>
-                        </View>
-                      ))}
-                    </View>
-                  </>
-                )}
 
                 <Text style={[styles.blockTitle, { color: colors.text }]}>추천</Text>
                 {analysisResult.recommendations.map((r) => (
@@ -498,6 +468,7 @@ export default function HomeScreen() {
                   </TouchableOpacity>
                 </View>
               </View>
+              {resultScene && <DreamSceneCard content={resultScene.content} symbols={resultScene.symbols} />}
             </View>
           )}
 
@@ -599,11 +570,8 @@ const styles = StyleSheet.create({
   resultTitle: { fontSize: 16, fontWeight: '700', marginLeft: 8 },
   resultCard: { borderWidth: 1, borderRadius: 14, padding: 16 },
   summary: { fontSize: 14, fontWeight: '700', marginBottom: 12 },
-  confidenceRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
   blockTitle: { fontSize: 14, fontWeight: '700', marginTop: 12, marginBottom: 8 },
   bodyText: { fontSize: 14, lineHeight: 22 },
-  symbolRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  symbolChip: { borderWidth: 1, borderRadius: 14, paddingHorizontal: 10, paddingVertical: 4 },
   recoRow: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 8 },
   bullet: { width: 5, height: 5, borderRadius: 3, marginTop: 8, marginRight: 10 },
   feedbackTitle: { textAlign: 'center', fontWeight: '600', marginTop: 18, marginBottom: 10 },
