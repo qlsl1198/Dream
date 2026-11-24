@@ -7,6 +7,7 @@ import {
   ScrollView,
   StyleSheet,
   Alert,
+  Keyboard,
   SafeAreaView,
   Animated,
   useWindowDimensions,
@@ -40,6 +41,9 @@ export default function HomeScreen() {
   const compactHeader = useWindowDimensions().width < 360;
   const [dreamContent, setDreamContent] = useState('');
   const [draftReady, setDraftReady] = useState(false);
+  const [morningMode, setMorningMode] = useState(false);
+  const [closingFragment, setClosingFragment] = useState(false);
+  const fragmentLock = useRef(false);
   const [emotion, setEmotion] = useState('');
   const [dreamType, setDreamType] = useState<DreamTypeKey>('normal');
   const [vividness, setVividness] = useState(5);
@@ -81,12 +85,31 @@ export default function HomeScreen() {
   const changeDraft = (value: string) => {
     setDreamContent(value);
   };
+  const persistDraft = useCallback(() => {
+    const serialized = encodeDraft({ content: dreamContent, emotion, dreamType, vividness, sleepQuality, tagsInput });
+    return withStorageLock(() => AsyncStorage.setItem('dream_draft', serialized));
+  }, [dreamContent, emotion, dreamType, vividness, sleepQuality, tagsInput]);
   useEffect(() => {
     if (!draftReady || !focused || isAnalyzing) return;
-    const serialized = encodeDraft({ content: dreamContent, emotion, dreamType, vividness, sleepQuality, tagsInput });
-    void withStorageLock(() => AsyncStorage.setItem('dream_draft', serialized))
+    void persistDraft()
       .catch(() => Alert.alert('임시 저장 실패', '입력 내용은 화면에 남아 있어요.'));
-  }, [draftReady, focused, isAnalyzing, dreamContent, emotion, dreamType, vividness, sleepQuality, tagsInput]);
+  }, [draftReady, focused, isAnalyzing, persistDraft]);
+
+  const closeMorningFragment = async () => {
+    if (!draftReady || fragmentLock.current) return;
+    fragmentLock.current = true;
+    setClosingFragment(true);
+    try {
+      await persistDraft();
+      Keyboard.dismiss();
+      setMorningMode(false);
+    } catch {
+      Alert.alert('임시 저장 실패', '입력 내용은 그대로 남아 있어요. 다시 시도해 주세요.');
+    } finally {
+      fragmentLock.current = false;
+      setClosingFragment(false);
+    }
+  };
 
   useFocusEffect(useCallback(() => {
     let active = true;
@@ -285,9 +308,24 @@ export default function HomeScreen() {
             )}
           </View>
 
-          <DreamCompanion count={dreams?.length ?? null} starDates={starDates} targets={stars} onOpen={setOpenedDreamId} busy={isAnalyzing} justSaved={analysisResult !== null} emotion={emotion} focused={focused && !openedDreamId} />
+          {morningMode ? (
+            <View style={[styles.fragmentCard, { borderColor: colors.border, backgroundColor: colors.surface }]}>
+              <Text accessibilityRole="header" style={[styles.analyzeButtonText, { color: colors.accent, marginLeft: 0 }]}>몽이의 아침 한 조각</Text>
+              <Text style={[styles.bodyText, { color: colors.text }]}>지금 안 적으면 잊을 것 같은 장면 하나만 알려줘.</Text>
+              <Text style={[styles.offlineText, { color: colors.textSecondary }]}>한 단어도 좋아요. 기기에 임시 저장하고 나중에 이어 쓸 수 있어요.</Text>
+            </View>
+          ) : <>
+            <TouchableOpacity accessibilityRole="button" disabled={!draftReady || isAnalyzing}
+              accessibilityState={{ disabled: !draftReady || isAnalyzing }}
+              onPress={() => setMorningMode(true)}
+              style={[styles.analyzeButton, { backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1 }]}>
+              <Ionicons name="sunny-outline" size={20} color={colors.accent} />
+              <Text style={[styles.analyzeButtonText, { color: colors.text }]}>몽이의 아침 한 조각</Text>
+            </TouchableOpacity>
+            <DreamCompanion count={dreams?.length ?? null} starDates={starDates} targets={stars} onOpen={setOpenedDreamId} busy={isAnalyzing} justSaved={analysisResult !== null} emotion={emotion} focused={focused && !openedDreamId} />
+          </>}
 
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>꿈 내용</Text>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>{morningMode ? '기억나는 한 조각' : '꿈 내용'}</Text>
           <TextInput
             style={[
               styles.dreamInput,
@@ -297,12 +335,12 @@ export default function HomeScreen() {
                 color: colors.text,
               },
             ]}
-            placeholder="장면, 인물, 감정, 장소를 자유롭게 적어주세요..."
+            placeholder={morningMode ? '예: 빨간 우산' : '장면, 인물, 감정, 장소를 자유롭게 적어주세요...'}
             placeholderTextColor={colors.textSecondary}
             value={dreamContent}
             onChangeText={changeDraft}
-            editable={draftReady && !isAnalyzing}
-            accessibilityLabel="꿈 내용"
+            editable={draftReady && !isAnalyzing && !closingFragment}
+            accessibilityLabel={morningMode ? '기억나는 한 조각' : '꿈 내용'}
             multiline
             textAlignVertical="top"
             maxLength={APP_CONFIG.maxDreamLength}
@@ -311,6 +349,13 @@ export default function HomeScreen() {
             {dreamContent.length}/{APP_CONFIG.maxDreamLength}
           </Text>
 
+          {morningMode ? (
+            <TouchableOpacity accessibilityRole="button" accessibilityState={{ busy: closingFragment, disabled: closingFragment || !draftReady }}
+              disabled={closingFragment || !draftReady} onPress={closeMorningFragment}
+              style={[styles.analyzeButton, { backgroundColor: colors.accent }]}>
+              <Text style={[styles.analyzeButtonText, { color: colors.onAccent }]}>{closingFragment ? '임시 저장 중…' : '임시 저장하고 닫기'}</Text>
+            </TouchableOpacity>
+          ) : <>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>감정</Text>
           <View style={styles.emotionGrid}>
             {EMOTIONS.map((item) => (
@@ -416,6 +461,7 @@ export default function HomeScreen() {
             <Ionicons name={isAnalyzing ? 'hourglass-outline' : 'sparkles'} size={20} color={colors.accent} />
             <Text style={[styles.analyzeButtonText, { color: colors.text }]}>{isAnalyzing ? '처리 중…' : '해석하고 기록하기'}</Text>
           </TouchableOpacity>
+          </>}
 
           {isAnalyzing && loadingProgress > 0 && (
             <View accessibilityRole="progressbar" accessibilityValue={{ min: 0, max: 100, now: Math.round(loadingProgress) }} style={styles.loadingCard}>
@@ -426,7 +472,7 @@ export default function HomeScreen() {
             </View>
           )}
 
-          {analysisResult && (
+          {!morningMode && analysisResult && (
             <View style={styles.resultSection}>
               <View style={styles.resultHeader}>
                 <Ionicons name="sparkles" size={18} color={colors.accent} />
@@ -566,6 +612,7 @@ const styles = StyleSheet.create({
   progressBar: { height: 8, borderRadius: 4, overflow: 'hidden' },
   progressFill: { height: '100%', borderRadius: 4 },
   resultSection: { marginTop: 8 },
+  fragmentCard: { padding: 16, borderWidth: 1, borderRadius: 16, gap: 8, marginBottom: 12 },
   resultHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
   resultTitle: { fontSize: 16, fontWeight: '700', marginLeft: 8 },
   resultCard: { borderWidth: 1, borderRadius: 14, padding: 16 },
